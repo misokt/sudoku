@@ -5,11 +5,11 @@
 
 #define N 9
 
-enum Difficulty {
-    easy   = 20,
-    medium = 40,
-    hard   = 60,
-};
+typedef enum {
+    Easy   = 20,
+    Medium = 40,
+    Hard   = 60,
+} Difficulty;
 
 int is_safe(size_t grid[N][N], size_t row, size_t col, size_t num)
 {
@@ -25,6 +25,16 @@ int is_safe(size_t grid[N][N], size_t row, size_t col, size_t num)
         }
     }
     return 1;
+}
+
+void shuffle_numbers(size_t *array, size_t size)
+{
+    for (size_t i = 0; i < size; ++i) {
+        size_t j = rand() % size;
+        size_t temp = array[i];
+        array[i] = array[j];
+        array[j] = temp;
+    }
 }
 
 int fill_grid(size_t grid[N][N])
@@ -44,8 +54,15 @@ int fill_grid(size_t grid[N][N])
 
     if (is_empty) return 1; // is solved
 
-    size_t num = rand() % 9 + 1;
-    for (num = 1; num <= N; ++num) {
+    size_t numbers[N];
+    for (size_t i = 0; i < N; ++i) {
+        numbers[i] = i+1;
+    }
+
+    shuffle_numbers(numbers, N);
+
+    for (size_t i = 0; i < N; ++i) {
+        size_t num = numbers[i];
         if (is_safe(grid, row, col, num)) {
             grid[row][col] = num;
             if (fill_grid(grid)) return 1;
@@ -85,12 +102,16 @@ int main(void)
     srand(time(0));
 
     size_t grid[N][N] = {0};
+    size_t grid2[N][N] = {0};
 
     fill_grid(grid);
     print_grid_ln(grid);
 
-    /* remove_numbers(grid, hard); */
-    /* print_grid(grid); */
+    fill_grid(grid2);
+    print_grid_ln(grid2);
+
+    remove_numbers(grid, Hard);
+    print_grid(grid);
 
     return 0;
 }
