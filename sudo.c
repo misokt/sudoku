@@ -1,5 +1,4 @@
-// #include <curses.h>
-#include <stdio.h>
+#include <curses.h>
 #include <stdlib.h>
 #include <time.h>
 
@@ -73,7 +72,7 @@ int fill_grid(size_t grid[N][N])
     return 0;
 }
 
-void print_grid(size_t grid[N][N])
+void print_grid_stdout(size_t grid[N][N])
 {
     for (size_t row = 0; row < N; ++row) {
         for (size_t col = 0; col < N; ++col) {
@@ -82,19 +81,59 @@ void print_grid(size_t grid[N][N])
         printf("\n");
     }
 }
-#define print_grid_ln(grid) print_grid(grid); printf("\n");
+#define print_grid_ln(grid) print_grid_stdout(grid); printf("\n");
 
 void remove_numbers(size_t grid[N][N], size_t difficulty)
 {
-    size_t count = difficulty;
-    while (count != 0) {
+    while (difficulty != 0) {
         size_t i = rand() % N;
         size_t j = rand() % N;
         if (grid[i][j] != 0) {
             grid[i][j] = 0;
-            --count;
+            --difficulty;
         }
     }
+}
+
+void print_grid_stdscr(WINDOW *win, size_t grid[N][N])
+{
+    for (size_t row = 0; row < N; ++row) {
+        for (size_t col = 0; col < N; ++col) {
+            size_t y = row * 2 + 1;
+            size_t x = col * 4 + 1;
+
+            mvwprintw(win, y, x, "=====");
+
+            if (grid[row][col] == 0)
+                mvwprintw(win, y + 1, x, "|   |");
+            else
+                mvwprintw(win, y + 1, x, "| %zu |", grid[row][col]);
+
+            mvwprintw(win, y + 2, x, "=====");
+        }
+    }
+}
+
+void draw_grid(WINDOW *win, size_t grid[N][N], size_t cursor_row, size_t cursor_col) {
+    werase(win);
+
+    box(win, cursor_row, cursor_col);
+    mvwprintw(win, cursor_col, cursor_row, "sudo");
+
+    print_grid_stdscr(win, grid);
+
+    size_t highlight_y = cursor_row * 2 + 1;
+    size_t highlight_x = cursor_col * 4 + 1;
+    wattron(win, A_REVERSE); // "highlights" current cell
+    /* mvwprintw(win, highlight_y, highlight_x, "-----"); */
+    if (grid[cursor_row][cursor_col] == 0)
+        mvwprintw(win, highlight_y + 1, highlight_x, "|   |");
+    else
+        mvwprintw(win, highlight_y + 1, highlight_x, "| %zu |", grid[cursor_row][cursor_col]);
+    /* mvwprintw(win, highlight_y + 2, highlight_x, "-----"); */
+    wattroff(win, A_REVERSE);
+
+    wrefresh(win);
 }
 
 int main(void)
@@ -102,16 +141,68 @@ int main(void)
     srand(time(0));
 
     size_t grid[N][N] = {0};
-    size_t grid2[N][N] = {0};
-
     fill_grid(grid);
+    remove_numbers(grid, Hard);
     print_grid_ln(grid);
 
-    fill_grid(grid2);
-    print_grid_ln(grid2);
+    /* ----------------------  */
 
-    remove_numbers(grid, Hard);
-    print_grid(grid);
+    initscr();
+    noecho();
+    keypad(stdscr, TRUE);
+    cbreak();
+    curs_set(0);
+
+    if (has_colors()) {
+        start_color();
+        init_pair(1, COLOR_WHITE, COLOR_BLACK);
+        init_pair(2, COLOR_BLACK, COLOR_WHITE);
+        // attrset(COLOR_PAIR(1 or 2));
+    }
+
+    WINDOW *win = newwin(N * 2 + 3, N * 4 + 4, (LINES / N * 2), (COLS / N * 2));
+    size_t cursor_row= 0, cursor_col = 0;
+
+    size_t c;
+    size_t quit = 0;
+    while (!quit) {
+        draw_grid(win, grid, cursor_row, cursor_col);
+
+        c = wgetch(win);
+        switch (c) {
+        case KEY_UP:
+            if (cursor_row > 0) cursor_row--;
+            break;
+        case KEY_DOWN:
+            if (cursor_row < N - 1) cursor_row++;
+            break;
+        case KEY_LEFT:
+            if (cursor_col > 0) cursor_col--;
+            break;
+        case KEY_RIGHT:
+            if (cursor_col < N - 1) cursor_col++;
+            break;
+        case '1':
+        case '2':
+        case '3':
+        case '4':
+        case '5':
+        case '6':
+        case '7':
+        case '8':
+        case '9':
+            mvwprintw(win, N + 1, 1, "Pressed number: %ld\n", c - '0');
+            break;
+        case 'q': // quit
+            quit = 1;
+            break;
+        default:
+            break;
+        }
+    }
+
+    endwin();
+    printf("endwin();\n");
 
     return 0;
 }
