@@ -115,15 +115,18 @@ void print_grid_stdscr(WINDOW *win, size_t grid[N][N])
 }
 
 void draw_grid(WINDOW *win, size_t grid[N][N], size_t cursor_row, size_t cursor_col) {
-    werase(win);
+    // werase(win);
 
-    box(win, cursor_row, cursor_col);
-    mvwprintw(win, cursor_col, cursor_row, "sudo");
+    box(win, 0, 0);
+    mvwprintw(win, 0, 0, "sudo");
 
     print_grid_stdscr(win, grid);
 
     size_t highlight_y = cursor_row * 2 + 1;
     size_t highlight_x = cursor_col * 4 + 1;
+
+    wmove(win, highlight_y, highlight_x);
+
     wattron(win, A_REVERSE); // "highlights" current cell
     /* mvwprintw(win, highlight_y, highlight_x, "-----"); */
     if (grid[cursor_row][cursor_col] == 0)
@@ -154,33 +157,48 @@ int main(void)
     curs_set(0);
 
     if (has_colors()) {
-        start_color();
+        // start_color();
         init_pair(1, COLOR_WHITE, COLOR_BLACK);
         init_pair(2, COLOR_BLACK, COLOR_WHITE);
         // attrset(COLOR_PAIR(1 or 2));
     }
 
-    WINDOW *win = newwin(N * 2 + 3, N * 4 + 4, (LINES / N * 2), (COLS / N * 2));
+    WINDOW *win = newwin(N * 2 + 3, N * 4 + 3, (LINES / N * 2), (COLS / N * 2));
     size_t cursor_row= 0, cursor_col = 0;
 
     size_t c;
     size_t quit = 0;
+
+    mvwprintw(stdscr, LINES / 2, COLS / 2, "Press any key to start..");
     while (!quit) {
         draw_grid(win, grid, cursor_row, cursor_col);
 
-        c = wgetch(win);
+        c = getch();
+        if (c) {
+            // TODO: use sizeof() then printf magic to clear text
+            mvwprintw(stdscr, LINES / 2, COLS / 2, "                        ");
+            mvwprintw(stdscr, N + 1, 1, "             ");
+        }
         switch (c) {
         case KEY_UP:
-            if (cursor_row > 0) cursor_row--;
+            if (cursor_row > 0) {
+                --cursor_row;
+            }
             break;
         case KEY_DOWN:
-            if (cursor_row < N - 1) cursor_row++;
+            if (cursor_row < N - 1) {
+                ++cursor_row;
+            }
             break;
         case KEY_LEFT:
-            if (cursor_col > 0) cursor_col--;
+            if (cursor_col > 0) {
+                --cursor_col;
+            }
             break;
         case KEY_RIGHT:
-            if (cursor_col < N - 1) cursor_col++;
+            if (cursor_col < N - 1) {
+                ++cursor_col;
+            }
             break;
         case '1':
         case '2':
@@ -191,7 +209,10 @@ int main(void)
         case '7':
         case '8':
         case '9':
-            mvwprintw(win, N + 1, 1, "Pressed number: %ld\n", c - '0');
+            if (is_safe(grid, cursor_row, cursor_col, c - '0'))
+                grid[cursor_row][cursor_col] = c - '0';
+            else
+                mvwprintw(stdscr, N + 1, 1, "Invalid move!");
             break;
         case 'q': // quit
             quit = 1;
@@ -201,6 +222,7 @@ int main(void)
         }
     }
 
+    delwin(win);
     endwin();
     printf("endwin();\n");
 
