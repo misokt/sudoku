@@ -102,14 +102,20 @@ void print_grid_stdscr(WINDOW *win, size_t grid[N][N])
             size_t y = row * 2 + 1;
             size_t x = col * 4 + 1;
 
-            mvwprintw(win, y, x, "=====");
+            if (row % 3 == 0) {
+                mvwprintw(win, y, x, "=====");
+            } else {
+                mvwprintw(win, y, x, "- - -");
+            }
 
-            if (grid[row][col] == 0)
-                mvwprintw(win, y + 1, x, "|   |");
+            if (col % 3 == 0 || col == 0)
+                (grid[row][col] == 0) ? mvwprintw(win, y + 1, x, "|   |") : mvwprintw(win, y + 1, x, "| %zu |", grid[row][col]);
+            else if (col + 1 == N)
+                (grid[row][col] == 0) ? mvwprintw(win, y + 1, x, "    |") : mvwprintw(win, y + 1, x, "  %zu |", grid[row][col]);
             else
-                mvwprintw(win, y + 1, x, "| %zu |", grid[row][col]);
+                (grid[row][col] == 0) ? mvwprintw(win, y + 1, x, "     ") : mvwprintw(win, y + 1, x, "  %zu  ", grid[row][col]);
 
-            mvwprintw(win, y + 2, x, "=====");
+            if (row + 1 == N) mvwprintw(win, y + 2, x, "=====");
         }
     }
 }
@@ -133,6 +139,7 @@ void draw_grid(WINDOW *win, size_t grid[N][N], size_t cursor_row, size_t cursor_
         mvwprintw(win, highlight_y + 1, highlight_x, "|   |");
     else
         mvwprintw(win, highlight_y + 1, highlight_x, "| %zu |", grid[cursor_row][cursor_col]);
+
     /* mvwprintw(win, highlight_y + 2, highlight_x, "-----"); */
     wattroff(win, A_REVERSE);
 
