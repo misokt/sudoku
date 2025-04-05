@@ -85,13 +85,11 @@ void print_grid_stdout(size_t grid[N][N])
 
 void remove_numbers(size_t grid[N][N], size_t difficulty)
 {
-    while (difficulty != 0) {
+    while (difficulty-- != 0) {
         size_t i = rand() % N;
         size_t j = rand() % N;
-        if (grid[i][j] != 0) {
+        if (grid[i][j] != 0)
             grid[i][j] = 0;
-            --difficulty;
-        }
     }
 }
 
