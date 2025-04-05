@@ -1,7 +1,7 @@
 #include <curses.h>
 #include <stdlib.h>
 #include <time.h>
-
+#include <string.h>
 #define N 9
 
 typedef enum {
@@ -155,6 +155,9 @@ int main(void)
     remove_numbers(grid, Hard);
     print_grid_ln(grid);
 
+    const char *INIT_TEXT    = "Press any key to start..";
+    const char *INVALID_MOVE = "Invalid move";
+
     /* ----------------------  */
 
     initscr();
@@ -176,15 +179,15 @@ int main(void)
     size_t c;
     size_t quit = 0;
 
-    mvwprintw(stdscr, LINES / 2, COLS / 2, "Press any key to start..");
+    mvwprintw(stdscr, LINES / 2, COLS / 2, "%s", INIT_TEXT);
+
     while (!quit) {
         draw_grid(win, grid, cursor_row, cursor_col);
 
         c = getch();
         if (c) {
-            // TODO: use sizeof() then printf magic to clear text
-            mvwprintw(stdscr, LINES / 2, COLS / 2, "                        ");
-            mvwprintw(stdscr, N + 1, 1, "             ");
+            mvwprintw(stdscr, LINES / 2, COLS / 2, "%*c", (int)strlen(INIT_TEXT), ' ');
+            mvwprintw(stdscr, N + 1, 1, "%*c", (int)strlen(INVALID_MOVE), ' ');
         }
         switch (c) {
         case KEY_UP:
@@ -219,7 +222,7 @@ int main(void)
             if (is_safe(grid, cursor_row, cursor_col, c - '0'))
                 grid[cursor_row][cursor_col] = c - '0';
             else
-                mvwprintw(stdscr, N + 1, 1, "Invalid move!");
+                mvwprintw(stdscr, LINES / 2, COLS / 2, "%s", INVALID_MOVE);
             break;
         case 'q': // quit
             quit = 1;
