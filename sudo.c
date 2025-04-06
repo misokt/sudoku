@@ -106,21 +106,21 @@ void print_grid_stdscr(WINDOW *win, size_t grid[N][N])
                 mvwprintw(win, y, x, "- - -");
             }
 
+            size_t cell_value = grid[row][col];
             if (col % 3 == 0 || col == 0)
-                (grid[row][col] == 0) ? mvwprintw(win, y + 1, x, "|   |") : mvwprintw(win, y + 1, x, "| %zu |", grid[row][col]);
+                (cell_value == 0) ? mvwprintw(win, y + 1, x, "|   |") : mvwprintw(win, y + 1, x, "| %zu |", cell_value);
             else if (col + 1 == N)
-                (grid[row][col] == 0) ? mvwprintw(win, y + 1, x, "    |") : mvwprintw(win, y + 1, x, "  %zu |", grid[row][col]);
+                (cell_value == 0) ? mvwprintw(win, y + 1, x, "    |") : mvwprintw(win, y + 1, x, "  %zu |", cell_value);
             else
-                (grid[row][col] == 0) ? mvwprintw(win, y + 1, x, "     ") : mvwprintw(win, y + 1, x, "  %zu  ", grid[row][col]);
+                (cell_value == 0) ? mvwprintw(win, y + 1, x, "     ") : mvwprintw(win, y + 1, x, "  %zu  ", cell_value);
 
-            if (row + 1 == N) mvwprintw(win, y + 2, x, "=====");
+            if (row + 1 == N)
+                mvwprintw(win, y + 2, x, "=====");
         }
     }
 }
 
 void draw_grid(WINDOW *win, size_t grid[N][N], size_t cursor_row, size_t cursor_col) {
-    // werase(win);
-
     box(win, 0, 0);
     mvwprintw(win, 0, 0, "sudo");
 
@@ -137,7 +137,6 @@ void draw_grid(WINDOW *win, size_t grid[N][N], size_t cursor_row, size_t cursor_
         mvwprintw(win, highlight_y + 1, highlight_x, "|   |");
     else
         mvwprintw(win, highlight_y + 1, highlight_x, "| %zu |", grid[cursor_row][cursor_col]);
-
     /* mvwprintw(win, highlight_y + 2, highlight_x, "-----"); */
     wattroff(win, A_REVERSE);
 
@@ -148,10 +147,13 @@ int main(void)
 {
     srand(time(0));
 
-    size_t grid[N][N] = {0};
-    fill_grid(grid);
-    remove_numbers(grid, Hard);
-    print_grid_ln(grid);
+    size_t grid_puzzle[N][N] = {0};
+    fill_grid(grid_puzzle);
+
+    size_t grid_solved[N][N] = {0};
+    memcpy(&grid_solved, &grid_puzzle, sizeof(grid_puzzle));
+
+    remove_numbers(grid_puzzle, Medium);
 
     const char *INIT_TEXT    = "Press any key to start..";
     const char *INVALID_MOVE = "Invalid move";
@@ -180,12 +182,12 @@ int main(void)
     mvwprintw(stdscr, LINES / 2, COLS / 2, "%s", INIT_TEXT);
 
     while (!quit) {
-        draw_grid(win, grid, cursor_row, cursor_col);
+        draw_grid(win, grid_puzzle, cursor_row, cursor_col);
 
         c = getch();
         if (c) {
             mvwprintw(stdscr, LINES / 2, COLS / 2, "%*c", (int)strlen(INIT_TEXT), ' ');
-            mvwprintw(stdscr, N + 1, 1, "%*c", (int)strlen(INVALID_MOVE), ' ');
+            mvwprintw(stdscr, LINES / 2, COLS / 2, "%*c", (int)strlen(INVALID_MOVE), ' ');
         }
         switch (c) {
         case KEY_UP:
@@ -216,13 +218,15 @@ int main(void)
         case '6':
         case '7':
         case '8':
-        case '9':
-            if (is_safe(grid, cursor_row, cursor_col, c - '0'))
-                grid[cursor_row][cursor_col] = c - '0';
+        case '9': {
+            size_t user_input = c - '0';
+            if (grid_solved[cursor_row][cursor_col] == user_input)
+                grid_puzzle[cursor_row][cursor_col] = user_input;
             else
                 mvwprintw(stdscr, LINES / 2, COLS / 2, "%s", INVALID_MOVE);
             break;
-        case 'q': // quit
+        }
+        case 'Q': // quit
             quit = 1;
             break;
         default:
@@ -232,7 +236,7 @@ int main(void)
 
     delwin(win);
     endwin();
-    printf("endwin();\n");
 
+    printf("Goodbye!\n");
     return 0;
 }
