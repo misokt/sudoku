@@ -190,22 +190,23 @@ int main(void)
         // attrset(COLOR_PAIR(1 or 2));
     }
 
-    WINDOW *win = newwin(N * 2 + 3, N * 4 + 3, (LINES / N * 2), (COLS / N * 2));
-    size_t cursor_row= 0, cursor_col = 0;
+    // TODO: exit if not enough screen space
+    WINDOW *sudoku_grid = newwin(N * 2 + 3, N * 4 + 3, (LINES / N * 2), (COLS / N * 2));
+    size_t cursor_row = 0, cursor_col = 0;
 
     size_t c;
     size_t mistakes = 0;
     bool quit = false;
 
-    mvwprintw(stdscr, LINES / 2, COLS / 2, "%s", INIT_TEXT);
+    mvwprintw(stdscr, LINES * 0.75, (COLS - strlen(INIT_TEXT)) * 0.5, "%s", INIT_TEXT);
 
     while (!quit) {
-        draw_grid(win, grid_puzzle, cursor_row, cursor_col);
+        draw_grid(sudoku_grid, grid_puzzle, cursor_row, cursor_col);
 
         c = getch();
         if (c) {
-            mvwprintw(stdscr, LINES / 2, COLS / 2, "%*c", (int)strlen(INIT_TEXT), ' ');
-            mvwprintw(stdscr, LINES / 2, COLS / 2, "%*c", (int)strlen(INVALID_MOVE), ' ');
+            mvwprintw(stdscr, LINES * 0.75, (COLS - strlen(INIT_TEXT)) * 0.5, "%*c", (int)strlen(INIT_TEXT), ' ');
+            mvwprintw(stdscr, LINES * 0.75, (COLS - strlen(INVALID_MOVE)) * 0.5, "%*c", (int)strlen(INVALID_MOVE), ' ');
         }
         switch (c) {
         case KEY_UP:
@@ -241,7 +242,7 @@ int main(void)
             if (grid_solved[cursor_row][cursor_col] == user_input)
                 grid_puzzle[cursor_row][cursor_col] = user_input;
             else {
-                mvwprintw(stdscr, LINES / 2, COLS / 2, "%s", INVALID_MOVE);
+                mvwprintw(stdscr, LINES * 0.75, (COLS - strlen(INVALID_MOVE)) * 0.5, "%s", INVALID_MOVE);
                 ++mistakes;
             }
             break;
@@ -257,7 +258,7 @@ int main(void)
         }
     }
 
-    delwin(win);
+    delwin(sudoku_grid);
     endwin();
 
     printf("Mistakes: %zu\nGoodbye!\n", mistakes);
