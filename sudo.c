@@ -2,7 +2,9 @@
 #include <stdlib.h>
 #include <time.h>
 #include <string.h>
+
 #define N 9
+bool highlight_same_value = true;
 
 typedef enum {
     Easy   = 20,
@@ -53,7 +55,7 @@ int fill_grid(size_t grid[N][N])
 
     if (is_empty) return 1; // is solved
 
-    size_t numbers[N];
+    size_t numbers[N] = {0};
     for (size_t i = 0; i < N; ++i) {
         numbers[i] = i+1;
     }
@@ -120,9 +122,21 @@ void print_grid_stdscr(WINDOW *win, size_t grid[N][N])
     }
 }
 
+void highlight_cells(WINDOW *win, size_t grid[N][N], size_t cell_value)
+{
+    for (size_t row = 0; row < N; ++row) {
+        for (size_t col = 0; col < N; ++col) {
+            if (grid[row][col] == cell_value) {
+                mvwprintw(win, row * 2 + 2, col * 4 + 1, "| %zu |", grid[row][col]);
+            }
+        }
+    }
+}
+
 void draw_grid(WINDOW *win, size_t grid[N][N], size_t cursor_row, size_t cursor_col) {
     box(win, 0, 0);
     mvwprintw(win, 0, 0, "sudo");
+    //mvwprintw(stdscr, LINES / 2 * 1.5, COLS / 4, "[H] Highlight Same Value Cells");
 
     print_grid_stdscr(win, grid);
 
@@ -130,13 +144,16 @@ void draw_grid(WINDOW *win, size_t grid[N][N], size_t cursor_row, size_t cursor_
     size_t highlight_x = cursor_col * 4 + 1;
 
     wmove(win, highlight_y, highlight_x);
-
     wattron(win, A_REVERSE); // "highlights" current cell
     /* mvwprintw(win, highlight_y, highlight_x, "-----"); */
     if (grid[cursor_row][cursor_col] == 0)
         mvwprintw(win, highlight_y + 1, highlight_x, "|   |");
-    else
-        mvwprintw(win, highlight_y + 1, highlight_x, "| %zu |", grid[cursor_row][cursor_col]);
+    else {
+        if (highlight_same_value)
+            highlight_cells(win, grid, grid[cursor_row][cursor_col]);
+        else
+            mvwprintw(win, highlight_y + 1, highlight_x, "| %zu |", grid[cursor_row][cursor_col]);
+    }
     /* mvwprintw(win, highlight_y + 2, highlight_x, "-----"); */
     wattroff(win, A_REVERSE);
 
@@ -177,7 +194,8 @@ int main(void)
     size_t cursor_row= 0, cursor_col = 0;
 
     size_t c;
-    size_t quit = 0;
+    size_t mistakes = 0;
+    bool quit = false;
 
     mvwprintw(stdscr, LINES / 2, COLS / 2, "%s", INIT_TEXT);
 
@@ -222,12 +240,17 @@ int main(void)
             size_t user_input = c - '0';
             if (grid_solved[cursor_row][cursor_col] == user_input)
                 grid_puzzle[cursor_row][cursor_col] = user_input;
-            else
+            else {
                 mvwprintw(stdscr, LINES / 2, COLS / 2, "%s", INVALID_MOVE);
+                ++mistakes;
+            }
             break;
         }
+        case 'H': // (toggle) highlight same value cells
+            highlight_same_value = !highlight_same_value;
+            break;
         case 'Q': // quit
-            quit = 1;
+            quit = true;
             break;
         default:
             break;
@@ -237,6 +260,6 @@ int main(void)
     delwin(win);
     endwin();
 
-    printf("Goodbye!\n");
+    printf("Mistakes: %zu\nGoodbye!\n", mistakes);
     return 0;
 }
