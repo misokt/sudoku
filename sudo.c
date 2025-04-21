@@ -191,14 +191,19 @@ int main(void)
     }
 
     // TODO: exit if not enough screen space
-    WINDOW *sudoku_grid = newwin(N * 2 + 3, N * 4 + 3, (LINES / N * 2), (COLS / N * 2));
-    size_t cursor_row = 0, cursor_col = 0;
+
+    size_t grid_y = N * 2 + 3;
+    size_t grid_x = N * 4 + 3;
+    WINDOW *sudoku_grid = newwin(grid_y, grid_x, N, (COLS - grid_x) / 2);
+
+    size_t cursor_row = 0;
+    size_t cursor_col = 0;
+
+    mvwprintw(stdscr, LINES * 0.75, (COLS - strlen(INIT_TEXT)) * 0.5, "%s", INIT_TEXT);
 
     size_t c;
     size_t mistakes = 0;
     bool quit = false;
-
-    mvwprintw(stdscr, LINES * 0.75, (COLS - strlen(INIT_TEXT)) * 0.5, "%s", INIT_TEXT);
 
     while (!quit) {
         draw_grid(sudoku_grid, grid_puzzle, cursor_row, cursor_col);
