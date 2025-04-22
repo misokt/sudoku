@@ -145,16 +145,17 @@ void draw_grid(WINDOW *win, size_t grid[N][N], size_t cursor_row, size_t cursor_
 
     wmove(win, highlight_y, highlight_x);
     wattron(win, A_REVERSE); // "highlights" current cell
-    /* mvwprintw(win, highlight_y, highlight_x, "-----"); */
-    if (grid[cursor_row][cursor_col] == 0)
+
+    if (grid[cursor_row][cursor_col] == 0) {
         mvwprintw(win, highlight_y + 1, highlight_x, "|   |");
+    }
     else {
         if (highlight_same_value)
             highlight_cells(win, grid, grid[cursor_row][cursor_col]);
         else
             mvwprintw(win, highlight_y + 1, highlight_x, "| %zu |", grid[cursor_row][cursor_col]);
     }
-    /* mvwprintw(win, highlight_y + 2, highlight_x, "-----"); */
+
     wattroff(win, A_REVERSE);
 
     wrefresh(win);
@@ -170,7 +171,7 @@ int main(void)
     size_t grid_solved[N][N] = {0};
     memcpy(&grid_solved, &grid_puzzle, sizeof(grid_puzzle));
 
-    remove_numbers(grid_puzzle, Medium);
+    remove_numbers(grid_puzzle, Easy);
 
     const char *INIT_TEXT    = "Press any key to start..";
     const char *INVALID_MOVE = "Invalid move";
@@ -191,22 +192,21 @@ int main(void)
     }
 
     // TODO: exit if not enough screen space
-
     size_t grid_y = N * 2 + 3;
     size_t grid_x = N * 4 + 3;
-    WINDOW *sudoku_grid = newwin(grid_y, grid_x, N, (COLS - grid_x) / 2);
+    WINDOW *sudoku_matrix = newwin(grid_y, grid_x, N, (COLS - grid_x) / 2);
 
     size_t cursor_row = 0;
     size_t cursor_col = 0;
 
     mvwprintw(stdscr, LINES * 0.75, (COLS - strlen(INIT_TEXT)) * 0.5, "%s", INIT_TEXT);
 
-    size_t c;
     size_t mistakes = 0;
     bool quit = false;
+    size_t c;
 
     while (!quit) {
-        draw_grid(sudoku_grid, grid_puzzle, cursor_row, cursor_col);
+        draw_grid(sudoku_matrix, grid_puzzle, cursor_row, cursor_col);
 
         c = getch();
         if (c) {
@@ -244,8 +244,9 @@ int main(void)
         case '8':
         case '9': {
             size_t user_input = c - '0';
-            if (grid_solved[cursor_row][cursor_col] == user_input)
+            if (grid_solved[cursor_row][cursor_col] == user_input) {
                 grid_puzzle[cursor_row][cursor_col] = user_input;
+            }
             else {
                 mvwprintw(stdscr, LINES * 0.75, (COLS - strlen(INVALID_MOVE)) * 0.5, "%s", INVALID_MOVE);
                 ++mistakes;
@@ -263,7 +264,7 @@ int main(void)
         }
     }
 
-    delwin(sudoku_grid);
+    delwin(sudoku_matrix);
     endwin();
 
     printf("Mistakes: %zu\nGoodbye!\n", mistakes);
