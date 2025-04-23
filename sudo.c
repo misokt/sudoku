@@ -6,9 +6,10 @@
 #define N 9
 
 typedef enum {
-    Easy   = 20,
-    Medium = 40,
-    Hard   = 60,
+    EASY,
+    MEDIUM,
+    HARD,
+    COUNT_DIFFICULTY
 } Difficulty;
 
 int is_safe(size_t grid[N][N], size_t row, size_t col, size_t num)
@@ -171,9 +172,17 @@ void draw_grid(WINDOW *win, size_t grid[N][N], size_t cursor_row, size_t cursor_
     wrefresh(win);
 }
 
+Difficulty switch_difficulty(Difficulty current)
+{
+    return (current + 1) % COUNT_DIFFICULTY;
+}
+
 int main(void)
 {
     srand(time(0));
+    size_t difficulty_values[COUNT_DIFFICULTY] = {20, 40 , 60};
+    Difficulty current_difficulty = EASY;
+    // current_difficulty = switch_difficulty(current_difficulty);
 
     size_t grid_puzzle[N][N] = {0};
     fill_grid(grid_puzzle);
@@ -181,7 +190,7 @@ int main(void)
     size_t grid_solved[N][N] = {0};
     memcpy(&grid_solved, &grid_puzzle, sizeof(grid_puzzle));
 
-    remove_numbers(grid_puzzle, Easy);
+    remove_numbers(grid_puzzle, difficulty_values[current_difficulty]);
 
     const char *INIT_TEXT    = "Press any key to start..";
     const char *INVALID_MOVE = "Invalid move";
