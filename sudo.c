@@ -4,7 +4,6 @@
 #include <string.h>
 
 #define N 9
-bool highlight_same_value = true;
 
 typedef enum {
     Easy   = 20,
@@ -124,14 +123,25 @@ void print_grid_stdscr(WINDOW *win, size_t grid[N][N])
 
 void highlight_cells(WINDOW *win, size_t grid[N][N], size_t cell_value)
 {
+    size_t count_cell_value = 0;
     for (size_t row = 0; row < N; ++row) {
         for (size_t col = 0; col < N; ++col) {
             if (grid[row][col] == cell_value) {
                 mvwprintw(win, row * 2 + 2, col * 4 + 1, "| %zu |", grid[row][col]);
+
+                // TODO: turn highlight off/on x amount of times to indicate completed set of a number
+                // NOTE: A_BLINK of attron/wattron does not work on some (many?) terminal emulators
+                if (++count_cell_value == N) {
+                    //                                      vv = strlen("0 completed.");
+                    mvwprintw(stdscr, LINES * 0.75, (COLS - 12) * 0.5, "%lu completed.", cell_value);
+                }
             }
         }
+
     }
 }
+
+bool highlight_same_value = true;
 
 void draw_grid(WINDOW *win, size_t grid[N][N], size_t cursor_row, size_t cursor_col) {
     box(win, 0, 0);
@@ -211,7 +221,6 @@ int main(void)
         c = getch();
         if (c) {
             mvwprintw(stdscr, LINES * 0.75, (COLS - strlen(INIT_TEXT)) * 0.5, "%*c", (int)strlen(INIT_TEXT), ' ');
-            mvwprintw(stdscr, LINES * 0.75, (COLS - strlen(INVALID_MOVE)) * 0.5, "%*c", (int)strlen(INVALID_MOVE), ' ');
         }
         switch (c) {
         case KEY_UP:
@@ -259,8 +268,7 @@ int main(void)
         case 'Q': // quit
             quit = true;
             break;
-        default:
-            break;
+        default: break;
         }
     }
 
