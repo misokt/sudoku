@@ -129,7 +129,7 @@ void highlight_cells(WINDOW *win, size_t grid[N][N], size_t cell_value)
     for (size_t row = 0; row < N; ++row) {
         for (size_t col = 0; col < N; ++col) {
             if (grid[row][col] == cell_value) {
-                mvwprintw(win, row * 2 + 2, col * 4 + 1, "| %zu |", grid[row][col]);
+                mvwprintw(win, row * 2 + 2, col * 4 + 1, "  %zu  ", grid[row][col]);
             }
         }
 
@@ -159,6 +159,7 @@ void draw_grid(WINDOW *win, size_t grid[N][N], size_t cursor_row, size_t cursor_
     else {
         if (highlight_same_value) {
             highlight_cells(win, grid, cell_value);
+            mvwprintw(win, highlight_y + 1, highlight_x, "| %zu |", cell_value);
         }
         else {
             mvwprintw(win, highlight_y + 1, highlight_x, "| %zu |", cell_value);
