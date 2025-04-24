@@ -198,7 +198,6 @@ int main(void)
 
     size_t difficulty_values[COUNT_DIFFICULTY] = {20, 40 , 60};
     Difficulty current_difficulty = EASY;
-    // current_difficulty = switch_difficulty(current_difficulty);
 
     size_t grid_puzzle[N][N] = {0};
     fill_grid(grid_puzzle);
@@ -208,6 +207,7 @@ int main(void)
 
     remove_numbers(grid_puzzle, difficulty_values[current_difficulty]);
 
+    // TODO: better to specify a key rather than "any"
     const char *INIT_TEXT    = "Press any key to start..";
     const char *INVALID_MOVE = "Invalid move";
 
@@ -287,6 +287,13 @@ int main(void)
             }
             break;
         }
+        case '\t': // switch difficulty
+            current_difficulty = switch_difficulty(current_difficulty); // traverse through difficulties
+
+            fill_grid(grid_puzzle);
+            memcpy(&grid_solved, &grid_puzzle, sizeof(grid_puzzle));
+            remove_numbers(grid_puzzle, difficulty_values[current_difficulty]);
+            break;
         case 'H': // (toggle) highlight same value cells
             highlight_same_value = !highlight_same_value;
             break;
@@ -297,7 +304,7 @@ int main(void)
             break;
         }
 
-        if (!game_started && c != 0) {
+        if (!game_started && c) {
             game_started = true;
         }
     }
