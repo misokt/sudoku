@@ -124,18 +124,12 @@ void print_grid_stdscr(WINDOW *win, size_t grid[N][N])
 
 void highlight_cells(WINDOW *win, size_t grid[N][N], size_t cell_value)
 {
-    size_t count_cell_value = 0;
+    // TODO: turn highlight off/on x amount of times to indicate completed set of a number
+    // NOTE: A_BLINK of attron/wattron does not work on some (many?) terminal emulators
     for (size_t row = 0; row < N; ++row) {
         for (size_t col = 0; col < N; ++col) {
             if (grid[row][col] == cell_value) {
                 mvwprintw(win, row * 2 + 2, col * 4 + 1, "| %zu |", grid[row][col]);
-
-                // TODO: turn highlight off/on x amount of times to indicate completed set of a number
-                // NOTE: A_BLINK of attron/wattron does not work on some (many?) terminal emulators
-                if (++count_cell_value == N) {
-                    //                                      vv = strlen("0 completed.");
-                    mvwprintw(stdscr, LINES * 0.75, (COLS - 12) * 0.5, "%lu completed.", cell_value);
-                }
             }
         }
 
@@ -143,31 +137,51 @@ void highlight_cells(WINDOW *win, size_t grid[N][N], size_t cell_value)
 }
 
 bool highlight_same_value = true;
+bool game_started = false;
 
 void draw_grid(WINDOW *win, size_t grid[N][N], size_t cursor_row, size_t cursor_col) {
     box(win, 0, 0);
     mvwprintw(win, 0, 0, "sudo");
-    //mvwprintw(stdscr, LINES / 2 * 1.5, COLS / 4, "[H] Highlight Same Value Cells");
+    // mvwprintw(stdscr, LINES / 2 * 1.5, COLS / 4, "[H] Highlight Same Value Cells");
 
     print_grid_stdscr(win, grid);
 
     size_t highlight_y = cursor_row * 2 + 1;
     size_t highlight_x = cursor_col * 4 + 1;
+    size_t cell_value  = grid[cursor_row][cursor_col];
 
     wmove(win, highlight_y, highlight_x);
     wattron(win, A_REVERSE); // "highlights" current cell
 
-    if (grid[cursor_row][cursor_col] == 0) {
+    if (cell_value == 0) {
         mvwprintw(win, highlight_y + 1, highlight_x, "|   |");
     }
     else {
-        if (highlight_same_value)
-            highlight_cells(win, grid, grid[cursor_row][cursor_col]);
-        else
-            mvwprintw(win, highlight_y + 1, highlight_x, "| %zu |", grid[cursor_row][cursor_col]);
+        if (highlight_same_value) {
+            highlight_cells(win, grid, cell_value);
+        }
+        else {
+            mvwprintw(win, highlight_y + 1, highlight_x, "| %zu |", cell_value);
+        }
     }
 
     wattroff(win, A_REVERSE);
+
+    if (game_started) {
+        size_t count_cell_value = 0;
+        for (size_t row = 0; row < N; ++row) {
+            for (size_t col = 0; col < N; ++col) {
+                if (grid[row][col] == cell_value) {
+                    ++count_cell_value;
+                }
+            }
+        }
+
+        if (count_cell_value == N) {
+            //                                      vv = strlen("0 completed.");
+            mvwprintw(stdscr, LINES * 0.75, (COLS - 12) * 0.5, "%lu completed.", cell_value);
+        }
+    }
 
     wrefresh(win);
 }
@@ -180,6 +194,7 @@ Difficulty switch_difficulty(Difficulty current)
 int main(void)
 {
     srand(time(0));
+
     size_t difficulty_values[COUNT_DIFFICULTY] = {20, 40 , 60};
     Difficulty current_difficulty = EASY;
     // current_difficulty = switch_difficulty(current_difficulty);
@@ -277,7 +292,12 @@ int main(void)
         case 'Q': // quit
             quit = true;
             break;
-        default: break;
+        default:
+            break;
+        }
+
+        if (!game_started && c != 0) {
+            game_started = true;
         }
     }
 
