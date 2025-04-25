@@ -139,9 +139,24 @@ void highlight_cells(WINDOW *win, size_t grid[N][N], size_t cell_value)
 bool highlight_same_value = true;
 bool game_started = false;
 
-void draw_grid(WINDOW *win, size_t grid[N][N], size_t cursor_row, size_t cursor_col) {
+void draw_grid(WINDOW *win, size_t grid[N][N], size_t cursor_row, size_t cursor_col, Difficulty current_difficulty) {
     box(win, 0, 0);
-    mvwprintw(win, 0, 0, "sudo");
+
+    switch (current_difficulty) {
+    case 0:
+        mvwprintw(win, 0, 0, "sudo-[  Easy  ]");
+        break;
+    case 1:
+        mvwprintw(win, 0, 0, "sudo-[ Medium ]");
+        break;
+    case 2:
+        mvwprintw(win, 0, 0, "sudo-[  Hard  ]");
+        break;
+    default:
+        mvwprintw(win, 0, 0, "sudo");
+        break;
+    }
+
     // mvwprintw(stdscr, LINES / 2 * 1.5, COLS / 4, "[H] Highlight Same Value Cells");
 
     print_grid_stdscr(win, grid);
@@ -189,23 +204,7 @@ void draw_grid(WINDOW *win, size_t grid[N][N], size_t cursor_row, size_t cursor_
 
 Difficulty switch_difficulty(Difficulty current)
 {
-    Difficulty difficulty = (current + 1) % COUNT_DIFFICULTY;
-
-    switch (difficulty) {
-    case 0:
-        mvwprintw(stdscr, LINES * 0.4, (COLS) * 0.7, "[ Easy ]");
-        break;
-    case 1:
-        mvwprintw(stdscr, LINES * 0.4, (COLS) * 0.7, "[Medium]");
-        break;
-    case 2:
-        mvwprintw(stdscr, LINES * 0.4, (COLS) * 0.7, "[ Hard ]");
-        break;
-    default:
-        break;
-    }
-
-    return difficulty;
+    return (current + 1) % COUNT_DIFFICULTY;
 }
 
 int main(void)
@@ -257,7 +256,7 @@ int main(void)
     size_t c;
 
     while (!quit) {
-        draw_grid(sudoku_matrix, grid_puzzle, cursor_row, cursor_col);
+        draw_grid(sudoku_matrix, grid_puzzle, cursor_row, cursor_col, current_difficulty);
 
         c = getch();
         if (c) {
