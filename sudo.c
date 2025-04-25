@@ -189,7 +189,23 @@ void draw_grid(WINDOW *win, size_t grid[N][N], size_t cursor_row, size_t cursor_
 
 Difficulty switch_difficulty(Difficulty current)
 {
-    return (current + 1) % COUNT_DIFFICULTY;
+    Difficulty difficulty = (current + 1) % COUNT_DIFFICULTY;
+
+    switch (difficulty) {
+    case 0:
+        mvwprintw(stdscr, LINES * 0.4, (COLS) * 0.7, "[ Easy ]");
+        break;
+    case 1:
+        mvwprintw(stdscr, LINES * 0.4, (COLS) * 0.7, "[Medium]");
+        break;
+    case 2:
+        mvwprintw(stdscr, LINES * 0.4, (COLS) * 0.7, "[ Hard ]");
+        break;
+    default:
+        break;
+    }
+
+    return difficulty;
 }
 
 int main(void)
