@@ -157,8 +157,6 @@ void draw_grid(WINDOW *win, size_t grid[N][N], size_t cursor_row, size_t cursor_
         break;
     }
 
-    // mvwprintw(stdscr, LINES / 2 * 1.5, COLS / 4, "[H] Highlight Same Value Cells");
-
     print_grid_stdscr(win, grid);
 
     size_t highlight_y = cursor_row * 2 + 1;
@@ -250,6 +248,16 @@ int main(void)
     size_t cursor_col = 0;
 
     mvwprintw(stdscr, LINES * 0.75, (COLS - strlen(INIT_TEXT)) * 0.5, "%s", INIT_TEXT);
+
+    const char *controls[] = {"Controls:",
+                              "[Arrow Keys] Navigate Cells",
+                              "[TAB] Change Difficulty",
+                              "[H] Highlight Same Value Cells", //                | strlen()
+                              "[Q] Quit"};                      //                |
+    for (size_t i = 0; i < sizeof(controls)/sizeof(controls[0]); ++i) { //        |
+        //                                         vv --------------------------- |
+        mvwprintw(stdscr, LINES * 0.5 + i, (COLS - 30) * 0.5, "%s", controls[i]);
+    }
 
     size_t mistakes = 0;
     bool quit = false;
