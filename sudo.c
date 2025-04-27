@@ -95,7 +95,7 @@ void remove_numbers(size_t grid[N][N], size_t difficulty)
     }
 }
 
-void print_grid_stdscr(WINDOW *win, size_t grid[N][N])
+void print_grid_window(WINDOW *win, size_t grid[N][N])
 {
     for (size_t row = 0; row < N; ++row) {
         for (size_t col = 0; col < N; ++col) {
@@ -159,7 +159,7 @@ void draw_grid(WINDOW *win, size_t grid[N][N], size_t cursor_row, size_t cursor_
         break;
     }
 
-    print_grid_stdscr(win, grid);
+    print_grid_window(win, grid);
 
     size_t highlight_y = cursor_row * 2 + 1;
     size_t highlight_x = cursor_col * 4 + 1;
