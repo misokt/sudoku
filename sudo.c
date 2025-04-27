@@ -200,6 +200,27 @@ void draw_grid(WINDOW *win, size_t grid[N][N], size_t cursor_row, size_t cursor_
     wrefresh(win);
 }
 
+void show_controls()
+{
+    const char *controls[] = {"Controls:",
+                              "[Arrow Keys] Navigate Cells",
+                              "[TAB] Change Difficulty",
+                              "[H] Highlight Same Value Cells",
+                              "[Q] Quit"};
+    size_t controls_count = *(&controls + 1) - controls;
+
+    size_t longest_string = 0;
+    for (size_t i = 0; i < controls_count; ++i) {
+        if (strlen(controls[i]) > longest_string) {
+            longest_string = strlen(controls[i]);
+        }
+    }
+
+    for (size_t i = 0; i < controls_count; ++i) {
+        mvwprintw(stdscr, LINES * 0.5 + i, (COLS - longest_string) * 0.5, "%s", controls[i]);
+    }
+}
+
 Difficulty switch_difficulty(Difficulty current)
 {
     return (current + 1) % COUNT_DIFFICULTY;
@@ -242,22 +263,14 @@ int main(void)
     // TODO: exit if not enough screen space
     size_t grid_y = N * 2 + 3;
     size_t grid_x = N * 4 + 3;
+
     WINDOW *sudoku_matrix = newwin(grid_y, grid_x, N, (COLS - grid_x) / 2);
 
     size_t cursor_row = 0;
     size_t cursor_col = 0;
 
     mvwprintw(stdscr, LINES * 0.75, (COLS - strlen(INIT_TEXT)) * 0.5, "%s", INIT_TEXT);
-
-    const char *controls[] = {"Controls:",
-                              "[Arrow Keys] Navigate Cells",
-                              "[TAB] Change Difficulty",
-                              "[H] Highlight Same Value Cells", //                | strlen()
-                              "[Q] Quit"};                      //                |
-    for (size_t i = 0; i < sizeof(controls)/sizeof(controls[0]); ++i) { //        |
-        //                                         vv --------------------------- |
-        mvwprintw(stdscr, LINES * 0.5 + i, (COLS - 30) * 0.5, "%s", controls[i]);
-    }
+    show_controls();
 
     size_t mistakes = 0;
     bool quit = false;
