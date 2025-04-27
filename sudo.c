@@ -137,9 +137,11 @@ void highlight_cells(WINDOW *win, size_t grid[N][N], size_t cell_value)
 }
 
 bool highlight_same_value = true;
-bool game_started = false;
+bool game_started         = false;
+bool completed            = false;
 
-void draw_grid(WINDOW *win, size_t grid[N][N], size_t cursor_row, size_t cursor_col, Difficulty current_difficulty) {
+void draw_grid(WINDOW *win, size_t grid[N][N], size_t cursor_row, size_t cursor_col, Difficulty current_difficulty)
+{
     box(win, 0, 0);
 
     switch (current_difficulty) {
@@ -168,6 +170,7 @@ void draw_grid(WINDOW *win, size_t grid[N][N], size_t cursor_row, size_t cursor_
 
     if (cell_value == 0) {
         mvwprintw(win, highlight_y + 1, highlight_x, "|   |");
+        completed = false;
     }
     else {
         if (highlight_same_value) {
@@ -183,10 +186,14 @@ void draw_grid(WINDOW *win, size_t grid[N][N], size_t cursor_row, size_t cursor_
 
     if (game_started) {
         size_t count_cell_value = 0;
+        size_t count_filled_cells = 0;
         for (size_t row = 0; row < N; ++row) {
             for (size_t col = 0; col < N; ++col) {
                 if (grid[row][col] == cell_value) {
                     ++count_cell_value;
+                }
+                if (grid[row][col] != 0) {
+                    ++count_filled_cells;
                 }
             }
         }
@@ -194,6 +201,13 @@ void draw_grid(WINDOW *win, size_t grid[N][N], size_t cursor_row, size_t cursor_
         if (count_cell_value == N) {
             //                                      vv = strlen("0 completed.");
             mvwprintw(stdscr, LINES * 0.75, (COLS - 12) * 0.5, "%lu completed.", cell_value);
+            completed = true;
+        }
+
+        if (count_filled_cells == N * N) {
+            //                                      vv = strlen("Puzzle completed.");
+            mvwprintw(stdscr, LINES * 0.75, (COLS - 17) * 0.5, "Puzzle completed.");
+            completed = true;
         }
     }
 
@@ -313,13 +327,15 @@ int main(void)
         case '7':
         case '8':
         case '9': {
-            size_t user_input = c - '0';
-            if (grid_solved[cursor_row][cursor_col] == user_input) {
-                grid_puzzle[cursor_row][cursor_col] = user_input;
-            }
-            else {
-                mvwprintw(stdscr, LINES * 0.75, (COLS - strlen(INVALID_MOVE)) * 0.5, "%s", INVALID_MOVE);
-                ++mistakes;
+            if (!completed) {
+                size_t user_input = c - '0';
+                if (grid_solved[cursor_row][cursor_col] == user_input) {
+                    grid_puzzle[cursor_row][cursor_col] = user_input;
+                }
+                else {
+                    mvwprintw(stdscr, LINES * 0.75, (COLS - strlen(INVALID_MOVE)) * 0.5, "%s", INVALID_MOVE);
+                    ++mistakes;
+                }
             }
             break;
         }
@@ -329,6 +345,7 @@ int main(void)
             fill_grid(grid_puzzle);
             memcpy(&grid_solved, &grid_puzzle, sizeof(grid_puzzle));
             remove_numbers(grid_puzzle, difficulty_values[current_difficulty]);
+            completed = false;
             break;
         case 'H': // (toggle) highlight same value cells
             highlight_same_value = !highlight_same_value;
