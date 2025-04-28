@@ -278,7 +278,7 @@ int main(void)
     size_t grid_y = N * 2 + 3;
     size_t grid_x = N * 4 + 3;
 
-    WINDOW *sudoku_matrix = newwin(grid_y, grid_x, N, (COLS - grid_x) / 2);
+    WINDOW *sudoku_matrix = newwin(grid_y, grid_x, (LINES - grid_y) / 2, (COLS - grid_x) / 2);
 
     size_t cursor_row = 0;
     size_t cursor_col = 0;
