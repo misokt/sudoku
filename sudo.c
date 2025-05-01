@@ -217,10 +217,9 @@ void draw_grid(WINDOW *win, size_t grid[N][N], size_t cursor_row, size_t cursor_
 void show_controls()
 {
     const char *controls[] = {"Controls:",
-                              "[Arrow Keys] Navigate Cells",
                               "[TAB] Change Difficulty",
-                              "[H] Highlight Same Value Cells",
-                              "[Q] Quit"};
+                              "[ H ] Highlight Same Value Cells",
+                              "[ Q ] Quit"};
     size_t controls_count = *(&controls + 1) - controls;
 
     size_t longest_string = 0;
@@ -267,12 +266,12 @@ int main(void)
     cbreak();
     curs_set(0);
 
-    if (has_colors()) {
-        // start_color();
-        init_pair(1, COLOR_WHITE, COLOR_BLACK);
-        init_pair(2, COLOR_BLACK, COLOR_WHITE);
-        // attrset(COLOR_PAIR(1 or 2));
-    }
+    /* if (has_colors()) { */
+    /*     // start_color(); */
+    /*     init_pair(1, COLOR_WHITE, COLOR_BLACK); */
+    /*     init_pair(2, COLOR_BLACK, COLOR_WHITE); */
+    /*     // attrset(COLOR_PAIR(1 or 2)); */
+    /* } */
 
     // TODO: exit if not enough screen space
     size_t grid_y = N * 2 + 3;
@@ -299,21 +298,25 @@ int main(void)
         }
         switch (c) {
         case KEY_UP:
+        case 'w':
             if (cursor_row > 0) {
                 --cursor_row;
             }
             break;
         case KEY_DOWN:
+        case 's':
             if (cursor_row < N - 1) {
                 ++cursor_row;
             }
             break;
         case KEY_LEFT:
+        case 'a':
             if (cursor_col > 0) {
                 --cursor_col;
             }
             break;
         case KEY_RIGHT:
+        case 'd':
             if (cursor_col < N - 1) {
                 ++cursor_col;
             }
