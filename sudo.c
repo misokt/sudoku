@@ -260,7 +260,7 @@ int main(void)
 {
     srand(time(0));
 
-    size_t difficulty_values[COUNT_DIFFICULTY] = {2, 4 , 6};
+    size_t difficulty_values[COUNT_DIFFICULTY] = {20, 40 , 60};
     Difficulty current_difficulty = EASY;
 
     size_t grid_puzzle[N][N] = {0};
@@ -362,6 +362,7 @@ int main(void)
         case '\t': // switch difficulty
             current_difficulty = switch_difficulty(current_difficulty); // traverse through difficulties
 
+            memset(grid_puzzle, 0, sizeof(grid_puzzle));
             fill_grid(grid_puzzle);
             memcpy(&grid_solved, &grid_puzzle, sizeof(grid_puzzle));
             remove_numbers(grid_puzzle, difficulty_values[current_difficulty]);
