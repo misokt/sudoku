@@ -2,8 +2,16 @@
 
 set -xe
 
-# cc -Wall -Wextra -o sudo sudo.c -lncurses
-# ./sudo
+ARG=$1
 
-cc -Wall -Wextra -o sudoku sudo.c -lncurses
-./sudoku
+if [[ $(date +%d) == "01" ]] && [[ $(date +%m) == "04" ]]; then
+    PROGRAM="sudo"
+else
+    PROGRAM="sudoku"
+fi
+
+cc -Wall -Wextra -o $PROGRAM ./sudo.c -lncurses
+
+if [[ $ARG == "run" ]]; then
+    ./$PROGRAM
+fi

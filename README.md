@@ -1,9 +1,16 @@
-# sudo
+# sudoku
 
-sudo..
+Sudoku in your terminal emulator.
 
-..ku
+## Build & Run
 
-## Explanation
+```console
+$ ./build.sh run
+```
 
-(20000000+250000+400+1)
+## Dependency
+
+- Ncurses
+
+---
+> Init day: 20250401
