@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <curses.h>
 #include <stdlib.h>
 #include <time.h>
@@ -11,6 +12,9 @@ typedef enum {
     HARD,
     COUNT_DIFFICULTY
 } Difficulty;
+
+struct timespec time_begin = {0};
+struct timespec time_end   = {0};
 
 int is_safe(size_t grid[N][N], size_t row, size_t col, size_t num)
 {
@@ -83,7 +87,6 @@ void print_grid_stdout(size_t grid[N][N])
         printf("\n");
     }
 }
-#define print_grid_ln(grid) print_grid_stdout(grid); printf("\n");
 
 void remove_numbers(size_t grid[N][N], size_t difficulty)
 {
@@ -132,13 +135,13 @@ void highlight_cells(WINDOW *win, size_t grid[N][N], size_t cell_value)
                 mvwprintw(win, row * 2 + 2, col * 4 + 1, "  %zu  ", grid[row][col]);
             }
         }
-
     }
 }
 
 bool highlight_same_value = true;
 bool game_started         = false;
-bool completed            = false;
+bool number_completed     = false;
+bool puzzle_completed     = false;
 
 void draw_grid(WINDOW *win, size_t grid[N][N], size_t cursor_row, size_t cursor_col, Difficulty current_difficulty)
 {
@@ -170,7 +173,7 @@ void draw_grid(WINDOW *win, size_t grid[N][N], size_t cursor_row, size_t cursor_
 
     if (cell_value == 0) {
         mvwprintw(win, highlight_y + 1, highlight_x, "|   |");
-        completed = false;
+        number_completed = false;
     }
     else {
         if (highlight_same_value) {
@@ -201,13 +204,15 @@ void draw_grid(WINDOW *win, size_t grid[N][N], size_t cursor_row, size_t cursor_
         if (count_cell_value == N) {
             //                                      vv = strlen("0 completed.");
             mvwprintw(stdscr, LINES * 0.75, (COLS - 12) * 0.5, "%lu completed.", cell_value);
-            completed = true;
+            number_completed = true;
         }
 
         if (count_filled_cells == N * N) {
             //                                      vv = strlen("Puzzle completed.");
             mvwprintw(stdscr, LINES * 0.75, (COLS - 17) * 0.5, "Puzzle completed.");
-            completed = true;
+            puzzle_completed = true;
+            size_t ret = clock_gettime(CLOCK_MONOTONIC, &time_end);
+            assert(ret == 0);
         }
     }
 
@@ -239,11 +244,23 @@ Difficulty switch_difficulty(Difficulty current)
     return (current + 1) % COUNT_DIFFICULTY;
 }
 
+double time_taken(struct timespec begin, struct timespec end)
+{
+    double a = (double)begin.tv_sec + begin.tv_nsec * 1e-9;
+    double b = (double)end.tv_sec + end.tv_nsec * 1e-9;
+    double elapsed_time = b - a;
+    if (elapsed_time < 0.0) {
+        elapsed_time = 0.0;
+    }
+
+    return elapsed_time;
+}
+
 int main(void)
 {
     srand(time(0));
 
-    size_t difficulty_values[COUNT_DIFFICULTY] = {20, 40 , 60};
+    size_t difficulty_values[COUNT_DIFFICULTY] = {2, 4 , 6};
     Difficulty current_difficulty = EASY;
 
     size_t grid_puzzle[N][N] = {0};
@@ -330,7 +347,7 @@ int main(void)
         case '7':
         case '8':
         case '9': {
-            if (!completed) {
+            if (!number_completed) {
                 size_t user_input = c - '0';
                 if (grid_solved[cursor_row][cursor_col] == user_input) {
                     grid_puzzle[cursor_row][cursor_col] = user_input;
@@ -348,13 +365,22 @@ int main(void)
             fill_grid(grid_puzzle);
             memcpy(&grid_solved, &grid_puzzle, sizeof(grid_puzzle));
             remove_numbers(grid_puzzle, difficulty_values[current_difficulty]);
-            completed = false;
+
+            number_completed = false;
+            puzzle_completed = false;
+
+            size_t ret = clock_gettime(CLOCK_MONOTONIC, &time_begin);
+            assert(ret == 0);
             break;
         case 'H': // (toggle) highlight same value cells
             highlight_same_value = !highlight_same_value;
             break;
         case 'Q': // quit
             quit = true;
+            if (!puzzle_completed) {
+                ret = clock_gettime(CLOCK_MONOTONIC, &time_end);
+                assert(ret == 0);
+            }
             break;
         default:
             break;
@@ -362,12 +388,17 @@ int main(void)
 
         if (!game_started && c) {
             game_started = true;
+            size_t ret = clock_gettime(CLOCK_MONOTONIC, &time_begin);
+            assert(ret == 0);
         }
     }
 
     delwin(sudoku_matrix);
     endwin();
 
-    printf("Mistakes: %zu\nGoodbye!\n", mistakes);
+    printf("Time taken: %.2lfs\n", time_taken(time_begin, time_end));
+    printf("Mistakes: %zu\n", mistakes);
+
+    printf("Goodbye!\n");
     return 0;
 }
