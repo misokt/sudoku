@@ -244,7 +244,7 @@ Difficulty switch_difficulty(Difficulty current)
     return (current + 1) % COUNT_DIFFICULTY;
 }
 
-double time_taken(struct timespec begin, struct timespec end)
+void time_taken(struct timespec begin, struct timespec end)
 {
     double a = (double)begin.tv_sec + begin.tv_nsec * 1e-9;
     double b = (double)end.tv_sec + end.tv_nsec * 1e-9;
@@ -253,7 +253,22 @@ double time_taken(struct timespec begin, struct timespec end)
         elapsed_time = 0.0;
     }
 
-    return elapsed_time;
+    size_t hours   = 0;
+    size_t minutes = 0;
+    size_t seconds = 0;
+    if (elapsed_time >= 60*60) {
+        hours = elapsed_time / (60*60);
+        elapsed_time = (size_t)elapsed_time % (60*60);
+    }
+    if (elapsed_time >= 60.0) {
+        minutes = elapsed_time / 60;
+        seconds = (size_t)elapsed_time % 60;
+    }
+    if (elapsed_time < 60.0) {
+        seconds = (size_t)elapsed_time;
+    }
+
+    printf("Time taken: %02zu:%02zu:%02zu\n", hours, minutes, seconds);
 }
 
 int main(void)
@@ -397,7 +412,7 @@ int main(void)
     delwin(sudoku_matrix);
     endwin();
 
-    printf("Time taken: %.2lfs\n", time_taken(time_begin, time_end));
+    time_taken(time_begin, time_end);
     printf("Mistakes: %zu\n", mistakes);
 
     printf("Goodbye!\n");
