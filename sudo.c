@@ -6,6 +6,26 @@
 
 #define N 9
 
+#define UNUSED(v) (void)(v)
+
+#define FORMAT_TIME(elapsed_time)                                       \
+    do {                                                                \
+        size_t hours   = 0;                                             \
+        size_t minutes = 0;                                             \
+        size_t seconds = 0;                                             \
+        if (elapsed_time >= 60*60) {                                    \
+            hours = elapsed_time / (60*60);                             \
+            elapsed_time = (size_t)elapsed_time % (60*60);              \
+        }                                                               \
+        if (elapsed_time >= 60.0) {                                     \
+            minutes = elapsed_time / 60;                                \
+            seconds = (size_t)elapsed_time % 60;                        \
+        } else {                                                        \
+            seconds = (size_t)elapsed_time;                             \
+        }                                                               \
+        printf("Time taken: %02zu:%02zu:%02zu\n", hours, minutes, seconds); \
+    } while (0)
+
 typedef enum {
     EASY,
     MEDIUM,
@@ -143,6 +163,22 @@ bool game_started         = false;
 bool number_completed     = false;
 bool puzzle_completed     = false;
 
+void save_score(Difficulty current_difficulty)
+{
+    __builtin_unreachable();
+    UNUSED(current_difficulty);
+}
+
+double fetch_score()
+{
+    __builtin_unreachable();
+    int difficulty;
+    double time;
+    UNUSED(difficulty);
+    UNUSED(time);
+    return 0.0;
+}
+
 void draw_grid(WINDOW *win, size_t grid[N][N], size_t cursor_row, size_t cursor_col, Difficulty current_difficulty)
 {
     box(win, 0, 0);
@@ -244,7 +280,7 @@ Difficulty switch_difficulty(Difficulty current)
     return (current + 1) % COUNT_DIFFICULTY;
 }
 
-void time_taken(struct timespec begin, struct timespec end)
+double time_taken(struct timespec begin, struct timespec end)
 {
     double a = (double)begin.tv_sec + begin.tv_nsec * 1e-9;
     double b = (double)end.tv_sec + end.tv_nsec * 1e-9;
@@ -252,23 +288,7 @@ void time_taken(struct timespec begin, struct timespec end)
     if (elapsed_time < 0.0) {
         elapsed_time = 0.0;
     }
-
-    size_t hours   = 0;
-    size_t minutes = 0;
-    size_t seconds = 0;
-    if (elapsed_time >= 60*60) {
-        hours = elapsed_time / (60*60);
-        elapsed_time = (size_t)elapsed_time % (60*60);
-    }
-    if (elapsed_time >= 60.0) {
-        minutes = elapsed_time / 60;
-        seconds = (size_t)elapsed_time % 60;
-    }
-    if (elapsed_time < 60.0) {
-        seconds = (size_t)elapsed_time;
-    }
-
-    printf("Time taken: %02zu:%02zu:%02zu\n", hours, minutes, seconds);
+    return elapsed_time;
 }
 
 int main(void)
@@ -286,9 +306,9 @@ int main(void)
 
     remove_numbers(grid_puzzle, difficulty_values[current_difficulty]);
 
-    // TODO: better to specify a key rather than "any"
-    const char *INIT_TEXT    = "Press any key to start..";
+    const char *INIT_TEXT    = "Press ENTER key to start..";
     const char *INVALID_MOVE = "Invalid move";
+    const int  len_init_text = strlen(INIT_TEXT);
 
     /* ----------------------  */
 
@@ -298,23 +318,20 @@ int main(void)
     cbreak();
     curs_set(0);
 
-    /* if (has_colors()) { */
-    /*     // start_color(); */
-    /*     init_pair(1, COLOR_WHITE, COLOR_BLACK); */
-    /*     init_pair(2, COLOR_BLACK, COLOR_WHITE); */
-    /*     // attrset(COLOR_PAIR(1 or 2)); */
-    /* } */
-
-    // TODO: exit if not enough screen space
     size_t grid_y = N * 2 + 3;
     size_t grid_x = N * 4 + 3;
+    if ((LINES < (int)grid_y) || (COLS < (int)grid_x)) {
+        endwin();
+        printf("Terminal size too smol ._.\n");
+        return 1;
+    }
 
     WINDOW *sudoku_matrix = newwin(grid_y, grid_x, (LINES - grid_y) / 2, (COLS - grid_x) / 2);
 
     size_t cursor_row = 0;
     size_t cursor_col = 0;
 
-    mvwprintw(stdscr, LINES * 0.75, (COLS - strlen(INIT_TEXT)) * 0.5, "%s", INIT_TEXT);
+    mvwprintw(stdscr, LINES * 0.75, (COLS - len_init_text) * 0.5, "%s", INIT_TEXT);
     show_controls();
 
     size_t mistakes = 0;
@@ -326,7 +343,7 @@ int main(void)
 
         c = getch();
         if (c) {
-            mvwprintw(stdscr, LINES * 0.75, (COLS - strlen(INIT_TEXT)) * 0.5, "%*c", (int)strlen(INIT_TEXT), ' ');
+            mvwprintw(stdscr, LINES * 0.75, (COLS - len_init_text) * 0.5, "%*c", len_init_text, ' ');
         }
         switch (c) {
         case KEY_UP:
@@ -412,7 +429,8 @@ int main(void)
     delwin(sudoku_matrix);
     endwin();
 
-    time_taken(time_begin, time_end);
+    double elapsed_time = time_taken(time_begin, time_end);
+    FORMAT_TIME(elapsed_time);
     printf("Mistakes: %zu\n", mistakes);
 
     printf("Goodbye!\n");
