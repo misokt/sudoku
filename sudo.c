@@ -33,6 +33,9 @@ typedef enum {
     COUNT_DIFFICULTY
 } Difficulty;
 
+size_t GRID_Y = N * 2 + 3;
+size_t GRID_X = N * 4 + 3;
+
 struct timespec time_begin = {0};
 struct timespec time_end   = {0};
 
@@ -238,14 +241,14 @@ void draw_grid(WINDOW *win, size_t grid[N][N], size_t cursor_row, size_t cursor_
         }
 
         if (count_cell_value == N) {
-            //                                      vv = strlen("0 completed.");
-            mvwprintw(stdscr, LINES * 0.75, (COLS - 12) * 0.5, "%lu completed.", cell_value);
+            //                                                    vv = strlen("0 completed.");
+            mvwprintw(stdscr, ((LINES + GRID_Y) / 2) + 1, (COLS - 12) * 0.5, "%lu completed.", cell_value);
             number_completed = true;
         }
 
         if (count_filled_cells == N * N) {
-            //                                      vv = strlen("Puzzle completed.");
-            mvwprintw(stdscr, LINES * 0.75, (COLS - 17) * 0.5, "Puzzle completed.");
+            //                                                    vv = strlen("Puzzle completed.");
+            mvwprintw(stdscr, ((LINES + GRID_Y) / 2) + 1, (COLS - 17) * 0.5, "Puzzle completed.");
             puzzle_completed = true;
             size_t ret = clock_gettime(CLOCK_MONOTONIC, &time_end);
             assert(ret == 0);
@@ -318,20 +321,19 @@ int main(void)
     cbreak();
     curs_set(0);
 
-    size_t grid_y = N * 2 + 3;
-    size_t grid_x = N * 4 + 3;
-    if ((LINES < (int)grid_y) || (COLS < (int)grid_x)) {
+    if ((LINES < (int)GRID_Y) || (LINES <= (int)((LINES + GRID_Y) / 2) + 1)  || (COLS < (int)GRID_X)) {
         endwin();
         printf("Terminal size too smol ._.\n");
+        fprintf(stderr, "Need minimum: 24 LINES, 39 COLUMNS\n"); // $ echo $LINES $COLUMNS
         return 1;
     }
 
-    WINDOW *sudoku_matrix = newwin(grid_y, grid_x, (LINES - grid_y) / 2, (COLS - grid_x) / 2);
+    WINDOW *sudoku_matrix = newwin(GRID_Y, GRID_X, (LINES - GRID_Y) / 2, (COLS - GRID_X) / 2);
 
     size_t cursor_row = 0;
     size_t cursor_col = 0;
 
-    mvwprintw(stdscr, LINES * 0.75, (COLS - len_init_text) * 0.5, "%s", INIT_TEXT);
+    mvwprintw(stdscr, ((LINES + GRID_Y) / 2) + 1, (COLS - len_init_text) * 0.5, "%s", INIT_TEXT);
     show_controls();
 
     size_t mistakes = 0;
@@ -343,7 +345,7 @@ int main(void)
 
         c = getch();
         if (c) {
-            mvwprintw(stdscr, LINES * 0.75, (COLS - len_init_text) * 0.5, "%*c", len_init_text, ' ');
+            mvwprintw(stdscr, ((LINES + GRID_Y) / 2) + 1, (COLS - len_init_text) * 0.5, "%*c", len_init_text, ' ');
         }
         switch (c) {
         case KEY_UP:
@@ -385,7 +387,7 @@ int main(void)
                     grid_puzzle[cursor_row][cursor_col] = user_input;
                 }
                 else {
-                    mvwprintw(stdscr, LINES * 0.75, (COLS - strlen(INVALID_MOVE)) * 0.5, "%s", INVALID_MOVE);
+                    mvwprintw(stdscr, ((LINES + GRID_Y) / 2) + 1, (COLS - strlen(INVALID_MOVE)) * 0.5, "%s", INVALID_MOVE);
                     ++mistakes;
                 }
             }
