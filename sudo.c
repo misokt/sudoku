@@ -5,6 +5,7 @@
 #include <string.h>
 
 #define N 9
+#define ONE_KB 1024
 
 #define UNUSED(v) (void)(v)
 
@@ -166,65 +167,116 @@ bool game_started         = false;
 bool number_completed     = false;
 bool puzzle_completed     = false;
 
+bool save_scores = false;
+char path_score_file[ONE_KB];
+
+int setup_score_file(void)
+{
+    const char *score_file = "scores.sudoku";
+
+    const char *xdg_cache_home = getenv("XDG_CACHE_HOME");
+    if (xdg_cache_home == NULL) {
+        const char *home_dir = getenv("HOME");
+        if (home_dir == NULL) {
+            fprintf(stderr, "ERROR: could not get $HOME environment variable\n");
+            return 1;
+        }
+        sprintf(path_score_file, "%s/%s/%s", home_dir, ".cache", score_file);
+    } else {
+        sprintf(path_score_file, "%s/%s", xdg_cache_home, score_file);
+    }
+
+    printf("path_score_file: %s\n", path_score_file);
+
+    FILE *f = fopen(path_score_file, "r+");
+    if (f) {      // score_file exists
+        fclose(f);
+        return 0;
+    }
+
+    if (!f) {
+        f = fopen(path_score_file, "w+");
+        if (!f) {
+            fprintf(stderr, "ERROR: failed to open or create score file at %s\n", path_score_file);
+            fclose(f);
+            return 1;
+        }
+    }
+
+    for (size_t i = 0; i < COUNT_DIFFICULTY; ++i) {
+        fprintf(f, "0.0 ");
+    }
+
+    fclose(f);
+    return 0;
+}
+
 void save_score(Difficulty current_difficulty)
 {
     __builtin_unreachable();
     UNUSED(current_difficulty);
 }
 
-double fetch_score()
+double fetch_score(Difficulty current_difficulty)
 {
     __builtin_unreachable();
     int difficulty;
     double time;
     UNUSED(difficulty);
+    UNUSED(current_difficulty);
     UNUSED(time);
     return 0.0;
 }
 
-void draw_grid(WINDOW *win, size_t grid[N][N], size_t cursor_row, size_t cursor_col, Difficulty current_difficulty)
+typedef struct {
+    WINDOW *window;
+    size_t cursor_col;
+    size_t cursor_row;
+} Window_Info;
+
+void draw_grid(Window_Info *win_info, size_t grid[N][N], Difficulty current_difficulty)
 {
-    box(win, 0, 0);
+    box(win_info->window, 0, 0);
 
     switch (current_difficulty) {
     case 0:
-        mvwprintw(win, 0, 0, "sudo-[  Easy  ]");
+        mvwprintw(win_info->window, 0, 0, "sudoku-[  Easy  ]");
         break;
     case 1:
-        mvwprintw(win, 0, 0, "sudo-[ Medium ]");
+        mvwprintw(win_info->window, 0, 0, "sudoku-[ Medium ]");
         break;
     case 2:
-        mvwprintw(win, 0, 0, "sudo-[  Hard  ]");
+        mvwprintw(win_info->window, 0, 0, "sudoku-[  Hard  ]");
         break;
     default:
-        mvwprintw(win, 0, 0, "sudo");
+        mvwprintw(win_info->window, 0, 0, "sudoku");
         break;
     }
 
-    print_grid_window(win, grid);
+    print_grid_window(win_info->window, grid);
 
-    size_t highlight_y = cursor_row * 2 + 1;
-    size_t highlight_x = cursor_col * 4 + 1;
-    size_t cell_value  = grid[cursor_row][cursor_col];
+    size_t highlight_y = win_info->cursor_row * 2 + 1;
+    size_t highlight_x = win_info->cursor_col * 4 + 1;
+    size_t cell_value  = grid[win_info->cursor_row][win_info->cursor_col];
 
-    wmove(win, highlight_y, highlight_x);
-    wattron(win, A_REVERSE); // "highlights" current cell
+    wmove(win_info->window, highlight_y, highlight_x);
+    wattron(win_info->window, A_REVERSE); // "highlights" current cell
 
     if (cell_value == 0) {
-        mvwprintw(win, highlight_y + 1, highlight_x, "|   |");
+        mvwprintw(win_info->window, highlight_y + 1, highlight_x, "|   |");
         number_completed = false;
     }
     else {
         if (highlight_same_value) {
-            highlight_cells(win, grid, cell_value);
-            mvwprintw(win, highlight_y + 1, highlight_x, "| %zu |", cell_value);
+            highlight_cells(win_info->window, grid, cell_value);
+            mvwprintw(win_info->window, highlight_y + 1, highlight_x, "| %zu |", cell_value);
         }
         else {
-            mvwprintw(win, highlight_y + 1, highlight_x, "| %zu |", cell_value);
+            mvwprintw(win_info->window, highlight_y + 1, highlight_x, "| %zu |", cell_value);
         }
     }
 
-    wattroff(win, A_REVERSE);
+    wattroff(win_info->window, A_REVERSE);
 
     if (game_started) {
         size_t count_cell_value = 0;
@@ -255,7 +307,7 @@ void draw_grid(WINDOW *win, size_t grid[N][N], size_t cursor_row, size_t cursor_
         }
     }
 
-    wrefresh(win);
+    wrefresh(win_info->window);
 }
 
 void show_controls()
@@ -298,6 +350,8 @@ int main(void)
 {
     srand(time(0));
 
+    if (setup_score_file() == 0) save_scores = true;
+
     size_t difficulty_values[COUNT_DIFFICULTY] = {20, 40 , 60};
     Difficulty current_difficulty = EASY;
 
@@ -330,8 +384,11 @@ int main(void)
 
     WINDOW *sudoku_matrix = newwin(GRID_Y, GRID_X, (LINES - GRID_Y) / 2, (COLS - GRID_X) / 2);
 
-    size_t cursor_row = 0;
-    size_t cursor_col = 0;
+    Window_Info win_info = {
+        .window = sudoku_matrix,
+        .cursor_col = 0,
+        .cursor_row = 0,
+    };
 
     mvwprintw(stdscr, ((LINES + GRID_Y) / 2) + 1, (COLS - len_init_text) * 0.5, "%s", INIT_TEXT);
     show_controls();
@@ -341,7 +398,7 @@ int main(void)
     size_t c;
 
     while (!quit) {
-        draw_grid(sudoku_matrix, grid_puzzle, cursor_row, cursor_col, current_difficulty);
+        draw_grid(&win_info, grid_puzzle, current_difficulty);
 
         c = getch();
         if (c) {
@@ -350,26 +407,26 @@ int main(void)
         switch (c) {
         case KEY_UP:
         case 'w':
-            if (cursor_row > 0) {
-                --cursor_row;
+            if (win_info.cursor_row > 0) {
+                --win_info.cursor_row;
             }
             break;
         case KEY_DOWN:
         case 's':
-            if (cursor_row < N - 1) {
-                ++cursor_row;
+            if (win_info.cursor_row < N - 1) {
+                ++win_info.cursor_row;
             }
             break;
         case KEY_LEFT:
         case 'a':
-            if (cursor_col > 0) {
-                --cursor_col;
+            if (win_info.cursor_col > 0) {
+                --win_info.cursor_col;
             }
             break;
         case KEY_RIGHT:
         case 'd':
-            if (cursor_col < N - 1) {
-                ++cursor_col;
+            if (win_info.cursor_col < N - 1) {
+                ++win_info.cursor_col;
             }
             break;
         case '1':
@@ -383,8 +440,8 @@ int main(void)
         case '9': {
             if (!number_completed) {
                 size_t user_input = c - '0';
-                if (grid_solved[cursor_row][cursor_col] == user_input) {
-                    grid_puzzle[cursor_row][cursor_col] = user_input;
+                if (grid_solved[win_info.cursor_row][win_info.cursor_col] == user_input) {
+                    grid_puzzle[win_info.cursor_row][win_info.cursor_col] = user_input;
                 }
                 else {
                     mvwprintw(stdscr, ((LINES + GRID_Y) / 2) + 1, (COLS - strlen(INVALID_MOVE)) * 0.5, "%s", INVALID_MOVE);
