@@ -1,11 +1,13 @@
 #include <assert.h>
 #include <curses.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <time.h>
 #include <string.h>
 
-#define N 9
+#define VERSION "0.1.0"
 #define ONE_KB 1024
+#define N 9
 
 #define UNUSED(v) (void)(v)
 
@@ -39,6 +41,17 @@ size_t GRID_X = N * 4 + 3;
 
 struct timespec time_begin = {0};
 struct timespec time_end   = {0};
+
+double time_taken(struct timespec begin, struct timespec end)
+{
+    double a = (double)begin.tv_sec + begin.tv_nsec * 1e-9;
+    double b = (double)end.tv_sec + end.tv_nsec * 1e-9;
+    double elapsed_time = b - a;
+    if (elapsed_time < 0.0) {
+        elapsed_time = 0.0;
+    }
+    return elapsed_time;
+}
 
 int is_safe(size_t grid[N][N], size_t row, size_t col, size_t num)
 {
@@ -162,11 +175,6 @@ void highlight_cells(WINDOW *win, size_t grid[N][N], size_t cell_value)
     }
 }
 
-bool highlight_same_value = true;
-bool game_started         = false;
-bool number_completed     = false;
-bool puzzle_completed     = false;
-
 bool save_scores = false;
 char path_score_file[ONE_KB];
 
@@ -186,8 +194,6 @@ int setup_score_file(void)
         sprintf(path_score_file, "%s/%s", xdg_cache_home, score_file);
     }
 
-    printf("path_score_file: %s\n", path_score_file);
-
     FILE *f = fopen(path_score_file, "r+");
     if (f) {      // score_file exists
         fclose(f);
@@ -204,29 +210,60 @@ int setup_score_file(void)
     }
 
     for (size_t i = 0; i < COUNT_DIFFICULTY; ++i) {
-        fprintf(f, "0.0 ");
+        fprintf(f, "0.000000 ");
     }
 
     fclose(f);
     return 0;
 }
 
-void save_score(Difficulty current_difficulty)
+typedef struct {
+    Difficulty current_difficulty;
+    double     current_score;
+    double     best_scores[COUNT_DIFFICULTY];
+} Score_Data;
+
+void save_score(Score_Data *score_data)
 {
-    __builtin_unreachable();
-    UNUSED(current_difficulty);
+    if (!save_scores ||
+        score_data->current_score > score_data->best_scores[score_data->current_difficulty]) {
+        return;
+    }
+
+    //                                                     vv = strlen("Puzzle completed. Improved time!")
+    mvwprintw(stdscr, ((LINES + GRID_Y) / 2) + 1, (COLS -  32) * 0.5, "Puzzle completed. Improved time!");
+    score_data->best_scores[score_data->current_difficulty] = score_data->current_score;
+
+    FILE *f = fopen(path_score_file, "w");
+    assert(f != NULL);
+
+    for (size_t i = 0; i < COUNT_DIFFICULTY; ++i) {
+        fprintf(f, "%lf ", score_data->best_scores[i]);
+    }
+
+    fclose(f);
 }
 
-double fetch_score(Difficulty current_difficulty)
+void grab_scores(Score_Data *score_data)
 {
-    __builtin_unreachable();
-    int difficulty;
-    double time;
-    UNUSED(difficulty);
-    UNUSED(current_difficulty);
-    UNUSED(time);
-    return 0.0;
+    char line[ONE_KB];
+    char *sep = " ";
+    FILE *f = fopen(path_score_file, "r");
+    assert(f != NULL);
+    assert(fgets(line, sizeof(line), f) != NULL);
+    fclose(f);
+
+    char *token = strtok(line, sep);
+    for (size_t i = 0; i < COUNT_DIFFICULTY && token != NULL; ++i) {
+        score_data->best_scores[i] = atof(token);
+        token = strtok(NULL, sep);
+    }
 }
+
+bool highlight_same_value = true;
+bool game_started         = false;
+bool number_completed     = false;
+bool puzzle_completed     = false;
 
 typedef struct {
     WINDOW *window;
@@ -234,11 +271,11 @@ typedef struct {
     size_t cursor_row;
 } Window_Info;
 
-void draw_grid(Window_Info *win_info, size_t grid[N][N], Difficulty current_difficulty)
+void draw_grid(Window_Info *win_info, size_t grid[N][N], Score_Data *score_data)
 {
     box(win_info->window, 0, 0);
 
-    switch (current_difficulty) {
+    switch (score_data->current_difficulty) {
     case 0:
         mvwprintw(win_info->window, 0, 0, "sudoku-[  Easy  ]");
         break;
@@ -301,9 +338,11 @@ void draw_grid(Window_Info *win_info, size_t grid[N][N], Difficulty current_diff
         if (count_filled_cells == N * N) {
             //                                                    vv = strlen("Puzzle completed.");
             mvwprintw(stdscr, ((LINES + GRID_Y) / 2) + 1, (COLS - 17) * 0.5, "Puzzle completed.");
-            puzzle_completed = true;
             size_t ret = clock_gettime(CLOCK_MONOTONIC, &time_end);
             assert(ret == 0);
+            puzzle_completed = true;
+            score_data->current_score = time_taken(time_begin, time_end);
+            save_score(score_data);
         }
     }
 
@@ -335,25 +374,18 @@ Difficulty switch_difficulty(Difficulty current)
     return (current + 1) % COUNT_DIFFICULTY;
 }
 
-double time_taken(struct timespec begin, struct timespec end)
-{
-    double a = (double)begin.tv_sec + begin.tv_nsec * 1e-9;
-    double b = (double)end.tv_sec + end.tv_nsec * 1e-9;
-    double elapsed_time = b - a;
-    if (elapsed_time < 0.0) {
-        elapsed_time = 0.0;
-    }
-    return elapsed_time;
-}
-
 int main(void)
 {
     srand(time(0));
 
     if (setup_score_file() == 0) save_scores = true;
-
-    size_t difficulty_values[COUNT_DIFFICULTY] = {20, 40 , 60};
-    Difficulty current_difficulty = EASY;
+    size_t difficulty_values[COUNT_DIFFICULTY] = {20, 40, 60};
+    Score_Data score_data = {
+        .current_difficulty = EASY,
+        .current_score      = 0.0,
+        .best_scores        = {0.000000, 0.000000, 0.000000},
+    };
+    grab_scores(&score_data);
 
     size_t grid_puzzle[N][N] = {0};
     fill_grid(grid_puzzle);
@@ -361,9 +393,9 @@ int main(void)
     size_t grid_solved[N][N] = {0};
     memcpy(&grid_solved, &grid_puzzle, sizeof(grid_puzzle));
 
-    remove_numbers(grid_puzzle, difficulty_values[current_difficulty]);
+    remove_numbers(grid_puzzle, difficulty_values[score_data.current_difficulty]);
 
-    const char *INIT_TEXT    = "Press ENTER key to start..";
+    const char *INIT_TEXT    = "Press the <ENTER> key to start...";
     const char *INVALID_MOVE = "Invalid move";
     const int  len_init_text = strlen(INIT_TEXT);
 
@@ -377,7 +409,7 @@ int main(void)
 
     if ((LINES < (int)GRID_Y) || (LINES <= (int)((LINES + GRID_Y) / 2) + 1)  || (COLS < (int)GRID_X)) {
         endwin();
-        printf("Terminal size too smol ._.\n");
+        fprintf(stderr, "Terminal size too smol ._.\n");
         fprintf(stderr, "Need minimum: 24 LINES, 39 COLUMNS\n"); // $ echo $LINES $COLUMNS
         return 1;
     }
@@ -385,7 +417,7 @@ int main(void)
     WINDOW *sudoku_matrix = newwin(GRID_Y, GRID_X, (LINES - GRID_Y) / 2, (COLS - GRID_X) / 2);
 
     Window_Info win_info = {
-        .window = sudoku_matrix,
+        .window     = sudoku_matrix,
         .cursor_col = 0,
         .cursor_row = 0,
     };
@@ -398,7 +430,7 @@ int main(void)
     size_t c;
 
     while (!quit) {
-        draw_grid(&win_info, grid_puzzle, current_difficulty);
+        draw_grid(&win_info, grid_puzzle, &score_data);
 
         c = getch();
         if (c) {
@@ -451,12 +483,12 @@ int main(void)
             break;
         }
         case '\t': // switch difficulty
-            current_difficulty = switch_difficulty(current_difficulty); // traverse through difficulties
+            score_data.current_difficulty = switch_difficulty(score_data.current_difficulty); // traverse through difficulties
 
             memset(grid_puzzle, 0, sizeof(grid_puzzle));
             fill_grid(grid_puzzle);
             memcpy(&grid_solved, &grid_puzzle, sizeof(grid_puzzle));
-            remove_numbers(grid_puzzle, difficulty_values[current_difficulty]);
+            remove_numbers(grid_puzzle, difficulty_values[score_data.current_difficulty]);
 
             number_completed = false;
             puzzle_completed = false;
