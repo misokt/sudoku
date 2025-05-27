@@ -5,11 +5,12 @@
 #include <time.h>
 #include <string.h>
 
-#define VERSION "0.2.0"
+#define VERSION "0.2.1"
 #define ONE_KB 1024
 #define N 9
 
 #define UNUSED(v) (void)(v)
+#define SHIFT(xs, xs_size) (assert((xs_size) > 0), (xs_size)--, *(xs)++)
 
 #define FORMAT_TIME(prefix, elapsed_time)                               \
     do {                                                                \
@@ -135,46 +136,6 @@ void remove_numbers(size_t grid[N][N], size_t difficulty)
     }
 }
 
-void print_grid_window(WINDOW *win, size_t grid[N][N])
-{
-    for (size_t row = 0; row < N; ++row) {
-        for (size_t col = 0; col < N; ++col) {
-            size_t y = row * 2 + 1;
-            size_t x = col * 4 + 1;
-
-            if (row % 3 == 0) {
-                mvwprintw(win, y, x, "=====");
-            } else {
-                mvwprintw(win, y, x, "- - -");
-            }
-
-            size_t cell_value = grid[row][col];
-            if (col % 3 == 0 || col == 0)
-                (cell_value == 0) ? mvwprintw(win, y + 1, x, "|   |") : mvwprintw(win, y + 1, x, "| %zu |", cell_value);
-            else if (col + 1 == N)
-                (cell_value == 0) ? mvwprintw(win, y + 1, x, "    |") : mvwprintw(win, y + 1, x, "  %zu |", cell_value);
-            else
-                (cell_value == 0) ? mvwprintw(win, y + 1, x, "     ") : mvwprintw(win, y + 1, x, "  %zu  ", cell_value);
-
-            if (row + 1 == N)
-                mvwprintw(win, y + 2, x, "=====");
-        }
-    }
-}
-
-void highlight_cells(WINDOW *win, size_t grid[N][N], size_t cell_value)
-{
-    // TODO: turn highlight off/on x amount of times to indicate completed set of a number
-    // NOTE: A_BLINK of attron/wattron does not work on some (many?) terminal emulators
-    for (size_t row = 0; row < N; ++row) {
-        for (size_t col = 0; col < N; ++col) {
-            if (grid[row][col] == cell_value) {
-                mvwprintw(win, row * 2 + 2, col * 4 + 1, "  %zu  ", grid[row][col]);
-            }
-        }
-    }
-}
-
 bool save_scores = false;
 char path_score_file[ONE_KB];
 
@@ -217,6 +178,7 @@ int setup_score_file(void)
     return 0;
 }
 
+// A score is the time taken to complete a puzzle of the respective current_difficulty
 typedef struct {
     Difficulty current_difficulty;
     double     current_score;
@@ -279,6 +241,46 @@ typedef struct {
     size_t cursor_col;
     size_t cursor_row;
 } Window_Info;
+
+void print_grid_window(WINDOW *win, size_t grid[N][N])
+{
+    for (size_t row = 0; row < N; ++row) {
+        for (size_t col = 0; col < N; ++col) {
+            size_t y = row * 2 + 1;
+            size_t x = col * 4 + 1;
+
+            if (row % 3 == 0) {
+                mvwprintw(win, y, x, "=====");
+            } else {
+                mvwprintw(win, y, x, "- - -");
+            }
+
+            size_t cell_value = grid[row][col];
+            if (col % 3 == 0 || col == 0)
+                (cell_value == 0) ? mvwprintw(win, y + 1, x, "|   |") : mvwprintw(win, y + 1, x, "| %zu |", cell_value);
+            else if (col + 1 == N)
+                (cell_value == 0) ? mvwprintw(win, y + 1, x, "    |") : mvwprintw(win, y + 1, x, "  %zu |", cell_value);
+            else
+                (cell_value == 0) ? mvwprintw(win, y + 1, x, "     ") : mvwprintw(win, y + 1, x, "  %zu  ", cell_value);
+
+            if (row + 1 == N)
+                mvwprintw(win, y + 2, x, "=====");
+        }
+    }
+}
+
+void highlight_cells(WINDOW *win, size_t grid[N][N], size_t cell_value)
+{
+    // TODO: turn highlight off/on x amount of times to indicate completed set of a number
+    // NOTE: A_BLINK of attron/wattron does not work on some (many?) terminal emulators
+    for (size_t row = 0; row < N; ++row) {
+        for (size_t col = 0; col < N; ++col) {
+            if (grid[row][col] == cell_value) {
+                mvwprintw(win, row * 2 + 2, col * 4 + 1, "  %zu  ", grid[row][col]);
+            }
+        }
+    }
+}
 
 void draw_grid(Window_Info *win_info, size_t grid[N][N], Score_Data *score_data)
 {
@@ -383,13 +385,11 @@ Difficulty switch_difficulty(Difficulty current)
     return (current + 1) % COUNT_DIFFICULTY;
 }
 
-#define shift(xs, xs_size) (assert((xs_size) > 0), (xs_size)--, *(xs)++)
-
 int main(int argc, char **argv)
 {
     srand(time(0));
 
-    char *program_name = shift(argv, argc);
+    char *program_name = SHIFT(argv, argc);
 
     if (setup_score_file() == 0) save_scores = true;
     size_t difficulty_values[COUNT_DIFFICULTY] = {20, 40, 60};
@@ -401,7 +401,7 @@ int main(int argc, char **argv)
     grab_scores(&score_data);
 
     if (argc > 0) {
-        char *flag = shift(argv, argc);
+        char *flag = SHIFT(argv, argc);
         if (strcmp(flag, "-times") == 0) {
             for (size_t i = 0; i < COUNT_DIFFICULTY; ++i) {
                 switch (i) {
