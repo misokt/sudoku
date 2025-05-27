@@ -5,13 +5,13 @@
 #include <time.h>
 #include <string.h>
 
-#define VERSION "0.1.0"
+#define VERSION "0.2.0"
 #define ONE_KB 1024
 #define N 9
 
 #define UNUSED(v) (void)(v)
 
-#define FORMAT_TIME(elapsed_time)                                       \
+#define FORMAT_TIME(prefix, elapsed_time)                               \
     do {                                                                \
         size_t hours   = 0;                                             \
         size_t minutes = 0;                                             \
@@ -26,7 +26,7 @@
         } else {                                                        \
             seconds = (size_t)elapsed_time;                             \
         }                                                               \
-        printf("Time taken: %02zu:%02zu:%02zu\n", hours, minutes, seconds); \
+        printf("%s %02zu:%02zu:%02zu\n", prefix, hours, minutes, seconds); \
     } while (0)
 
 typedef enum {
@@ -226,17 +226,26 @@ typedef struct {
 void save_score(Score_Data *score_data)
 {
     if (!save_scores ||
-        score_data->current_score > score_data->best_scores[score_data->current_difficulty]) {
+        (score_data->current_score > score_data->best_scores[score_data->current_difficulty] &&
+         score_data->best_scores[score_data->current_difficulty] != 0.0)) {
+        return;
+    }
+
+    FILE *f = fopen(path_score_file, "r+");
+    assert(f != NULL);
+
+    if (score_data->best_scores[score_data->current_difficulty] == 0.0) {
+        score_data->best_scores[score_data->current_difficulty] = score_data->current_score;
+        for (size_t i = 0; i < COUNT_DIFFICULTY; ++i) {
+            fprintf(f, "%lf ", score_data->best_scores[i]);
+        }
         return;
     }
 
     //                                                     vv = strlen("Puzzle completed. Improved time!")
     mvwprintw(stdscr, ((LINES + GRID_Y) / 2) + 1, (COLS -  32) * 0.5, "Puzzle completed. Improved time!");
+
     score_data->best_scores[score_data->current_difficulty] = score_data->current_score;
-
-    FILE *f = fopen(path_score_file, "w");
-    assert(f != NULL);
-
     for (size_t i = 0; i < COUNT_DIFFICULTY; ++i) {
         fprintf(f, "%lf ", score_data->best_scores[i]);
     }
@@ -374,9 +383,13 @@ Difficulty switch_difficulty(Difficulty current)
     return (current + 1) % COUNT_DIFFICULTY;
 }
 
-int main(void)
+#define shift(xs, xs_size) (assert((xs_size) > 0), (xs_size)--, *(xs)++)
+
+int main(int argc, char **argv)
 {
     srand(time(0));
+
+    char *program_name = shift(argv, argc);
 
     if (setup_score_file() == 0) save_scores = true;
     size_t difficulty_values[COUNT_DIFFICULTY] = {20, 40, 60};
@@ -386,6 +399,34 @@ int main(void)
         .best_scores        = {0.000000, 0.000000, 0.000000},
     };
     grab_scores(&score_data);
+
+    if (argc > 0) {
+        char *flag = shift(argv, argc);
+        if (strcmp(flag, "-times") == 0) {
+            for (size_t i = 0; i < COUNT_DIFFICULTY; ++i) {
+                switch (i) {
+                case 0: FORMAT_TIME("Easy:  ", score_data.best_scores[i]); break;
+                case 1: FORMAT_TIME("Medium:", score_data.best_scores[i]); break;
+                case 2: FORMAT_TIME("Hard:  ", score_data.best_scores[i]); break;
+                default: break;
+                }
+            }
+            return 0;
+        } else if (strcmp(flag, "-version") == 0) {
+            printf("%s (version %s)\n", program_name, VERSION);
+            return 0;
+        } else if (strcmp(flag, "-help") == 0) {
+            printf("Usage: %s <option>\n", program_name);
+            printf("Options:\n");
+            printf("  -times:   Show best times in each difficulty category\n");
+            printf("  -version: Show version\n");
+            printf("  -help:    Show this help message\n");
+            return 0;
+        } else {
+            fprintf(stderr, "ERROR: invalid argument\n");
+            return 1;
+        }
+    }
 
     size_t grid_puzzle[N][N] = {0};
     fill_grid(grid_puzzle);
@@ -521,7 +562,7 @@ int main(void)
     endwin();
 
     double elapsed_time = time_taken(time_begin, time_end);
-    FORMAT_TIME(elapsed_time);
+    FORMAT_TIME("Last time taken:", elapsed_time);
     printf("Mistakes: %zu\n", mistakes);
 
     printf("Goodbye!\n");
