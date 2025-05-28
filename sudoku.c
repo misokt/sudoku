@@ -5,7 +5,7 @@
 #include <time.h>
 #include <string.h>
 
-#define VERSION "0.3.0"
+#define VERSION "0.4.0"
 #define ONE_KB 1024
 #define N 9
 
@@ -431,9 +431,6 @@ int main(int argc, char **argv)
             printf("  -version: Show version\n");
             printf("  -help:    Show this help message\n");
             return 0;
-        } else {
-            fprintf(stderr, "ERROR: invalid argument\n");
-            return 1;
         }
     }
 

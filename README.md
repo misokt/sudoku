@@ -8,11 +8,20 @@ Sudoku in your terminal emulator.
 
 More images [here](./images).
 
-## Build & Run
+## Quick Start
+
+```console
+$ cc -o sudoku ./sudoku.c -lncurses
+$ ./sudoku
+```
+
+Or, add the directory to your PATH, then use the build script to build and run:
 
 ```console
 $ ./build.sh run
 ```
+
+Depending on the day, you'll be in for a fun time! :v
 
 ## Dependency
 

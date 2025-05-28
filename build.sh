@@ -10,7 +10,7 @@ else
     PROGRAM="sudoku"
 fi
 
-cc -Wall -Wextra -o $PROGRAM ./sudo.c -lncurses
+cc -Wall -Wextra -o $PROGRAM ./sudoku.c -lncurses
 
 if [[ $ARG == "run" ]]; then
     ./$PROGRAM
