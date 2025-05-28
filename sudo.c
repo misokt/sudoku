@@ -5,7 +5,7 @@
 #include <time.h>
 #include <string.h>
 
-#define VERSION "0.2.1"
+#define VERSION "0.2.2"
 #define ONE_KB 1024
 #define N 9
 
@@ -131,8 +131,9 @@ void remove_numbers(size_t grid[N][N], size_t difficulty)
     while (difficulty-- != 0) {
         size_t i = rand() % N;
         size_t j = rand() % N;
-        if (grid[i][j] != 0)
+        if (grid[i][j] != 0) {
             grid[i][j] = 0;
+        }
     }
 }
 
@@ -188,8 +189,8 @@ typedef struct {
 void save_score(Score_Data *score_data)
 {
     if (!save_scores ||
-        (score_data->current_score > score_data->best_scores[score_data->current_difficulty] &&
-         score_data->best_scores[score_data->current_difficulty] != 0.0)) {
+        (score_data->best_scores[score_data->current_difficulty] != 0.0 &&
+         score_data->current_score > score_data->best_scores[score_data->current_difficulty])) {
         return;
     }
 
@@ -201,6 +202,7 @@ void save_score(Score_Data *score_data)
         for (size_t i = 0; i < COUNT_DIFFICULTY; ++i) {
             fprintf(f, "%lf ", score_data->best_scores[i]);
         }
+        fclose(f);
         return;
     }
 
@@ -256,15 +258,19 @@ void print_grid_window(WINDOW *win, size_t grid[N][N])
             }
 
             size_t cell_value = grid[row][col];
-            if (col % 3 == 0 || col == 0)
+            if (col % 3 == 0 || col == 0) {
                 (cell_value == 0) ? mvwprintw(win, y + 1, x, "|   |") : mvwprintw(win, y + 1, x, "| %zu |", cell_value);
-            else if (col + 1 == N)
+            }
+            else if (col + 1 == N) {
                 (cell_value == 0) ? mvwprintw(win, y + 1, x, "    |") : mvwprintw(win, y + 1, x, "  %zu |", cell_value);
-            else
+            }
+            else {
                 (cell_value == 0) ? mvwprintw(win, y + 1, x, "     ") : mvwprintw(win, y + 1, x, "  %zu  ", cell_value);
+            }
 
-            if (row + 1 == N)
+            if (row + 1 == N) {
                 mvwprintw(win, y + 2, x, "=====");
+            }
         }
     }
 }
@@ -326,7 +332,9 @@ void draw_grid(Window_Info *win_info, size_t grid[N][N], Score_Data *score_data)
 
     wattroff(win_info->window, A_REVERSE);
 
-    if (game_started) {
+    if (game_started && puzzle_completed) {
+            mvwprintw(stdscr, ((LINES + GRID_Y) / 2) + 1, (COLS - 17) * 0.5, "Puzzle completed.");
+    } else if (game_started) {
         size_t count_cell_value = 0;
         size_t count_filled_cells = 0;
         for (size_t row = 0; row < N; ++row) {
@@ -340,13 +348,13 @@ void draw_grid(Window_Info *win_info, size_t grid[N][N], Score_Data *score_data)
             }
         }
 
-        if (count_cell_value == N) {
+        if (count_cell_value == N && !puzzle_completed) {
             //                                                    vv = strlen("0 completed.");
             mvwprintw(stdscr, ((LINES + GRID_Y) / 2) + 1, (COLS - 12) * 0.5, "%lu completed.", cell_value);
             number_completed = true;
         }
 
-        if (count_filled_cells == N * N) {
+        if (count_filled_cells == N * N && !puzzle_completed) {
             //                                                    vv = strlen("Puzzle completed.");
             mvwprintw(stdscr, ((LINES + GRID_Y) / 2) + 1, (COLS - 17) * 0.5, "Puzzle completed.");
             size_t ret = clock_gettime(CLOCK_MONOTONIC, &time_end);
@@ -525,6 +533,7 @@ int main(int argc, char **argv)
         }
         case '\t': // switch difficulty
             score_data.current_difficulty = switch_difficulty(score_data.current_difficulty); // traverse through difficulties
+            score_data.current_score      = 0.0;
 
             memset(grid_puzzle, 0, sizeof(grid_puzzle));
             fill_grid(grid_puzzle);
@@ -533,6 +542,7 @@ int main(int argc, char **argv)
 
             number_completed = false;
             puzzle_completed = false;
+            mistakes = 0;
 
             size_t ret = clock_gettime(CLOCK_MONOTONIC, &time_begin);
             assert(ret == 0);
