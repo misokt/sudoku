@@ -5,7 +5,7 @@
 #include <time.h>
 #include <string.h>
 
-#define VERSION "0.2.2"
+#define VERSION "0.3.0"
 #define ONE_KB 1024
 #define N 9
 
@@ -282,7 +282,8 @@ void highlight_cells(WINDOW *win, size_t grid[N][N], size_t cell_value)
     for (size_t row = 0; row < N; ++row) {
         for (size_t col = 0; col < N; ++col) {
             if (grid[row][col] == cell_value) {
-                mvwprintw(win, row * 2 + 2, col * 4 + 1, "  %zu  ", grid[row][col]);
+                // mvwprintw(win, row * 2 + 2, col * 4 + 1, "  %zu  ", grid[row][col]); // Highlight length of same value cells is equal to currently selected cell
+                mvwprintw(win, row * 2 + 2, col * 4 + 2, " %zu ", grid[row][col]); // Reduced highlight length of same value cells versus currently selected cell
             }
         }
     }
