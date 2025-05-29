@@ -5,7 +5,7 @@
 #include <time.h>
 #include <string.h>
 
-#define VERSION "0.5.0"
+#define VERSION "0.5.1"
 #define ONE_KB 1024
 #define N 9
 
@@ -187,21 +187,21 @@ typedef struct {
     bool       hint_used;
 } Score_Data;
 
-void save_score(Score_Data *score_data)
+void save_score(Score_Data *sd)
 {
-    if (!save_scores || score_data->hint_used ||
-        (score_data->best_scores[score_data->current_difficulty] != 0.0 &&
-         score_data->current_score > score_data->best_scores[score_data->current_difficulty])) {
+    if (!save_scores || sd->hint_used ||
+        (sd->best_scores[sd->current_difficulty] != 0.0 &&
+         sd->current_score > sd->best_scores[sd->current_difficulty])) {
         return;
     }
 
     FILE *f = fopen(path_score_file, "r+");
     assert(f != NULL);
 
-    if (score_data->best_scores[score_data->current_difficulty] == 0.0) {
-        score_data->best_scores[score_data->current_difficulty] = score_data->current_score;
+    if (sd->best_scores[sd->current_difficulty] == 0.0) {
+        sd->best_scores[sd->current_difficulty] = sd->current_score;
         for (size_t i = 0; i < COUNT_DIFFICULTY; ++i) {
-            fprintf(f, "%lf ", score_data->best_scores[i]);
+            fprintf(f, "%lf ", sd->best_scores[i]);
         }
         fclose(f);
         return;
@@ -210,15 +210,15 @@ void save_score(Score_Data *score_data)
     //                                                     vv = strlen("Puzzle completed. Improved time!")
     mvwprintw(stdscr, ((LINES + GRID_Y) / 2) + 1, (COLS -  32) * 0.5, "Puzzle completed. Improved time!");
 
-    score_data->best_scores[score_data->current_difficulty] = score_data->current_score;
+    sd->best_scores[sd->current_difficulty] = sd->current_score;
     for (size_t i = 0; i < COUNT_DIFFICULTY; ++i) {
-        fprintf(f, "%lf ", score_data->best_scores[i]);
+        fprintf(f, "%lf ", sd->best_scores[i]);
     }
 
     fclose(f);
 }
 
-void grab_scores(Score_Data *score_data)
+void grab_scores(Score_Data *sd)
 {
     char line[ONE_KB];
     char *sep = " ";
@@ -229,7 +229,7 @@ void grab_scores(Score_Data *score_data)
 
     char *token = strtok(line, sep);
     for (size_t i = 0; i < COUNT_DIFFICULTY && token != NULL; ++i) {
-        score_data->best_scores[i] = atof(token);
+        sd->best_scores[i] = atof(token);
         token = strtok(NULL, sep);
     }
 }
@@ -290,49 +290,49 @@ void highlight_cells(WINDOW *win, size_t grid[N][N], size_t cell_value)
     }
 }
 
-void draw_grid(Window_Info *win_info, size_t grid[N][N], Score_Data *score_data)
+void draw_grid(Window_Info *winfo, size_t grid[N][N], Score_Data *sd)
 {
-    box(win_info->window, 0, 0);
+    box(winfo->window, 0, 0);
 
-    switch (score_data->current_difficulty) {
+    switch (sd->current_difficulty) {
     case 0:
-        mvwprintw(win_info->window, 0, 0, "sudoku-[  Easy  ]");
+        mvwprintw(winfo->window, 0, 0, "sudoku-[  Easy  ]");
         break;
     case 1:
-        mvwprintw(win_info->window, 0, 0, "sudoku-[ Medium ]");
+        mvwprintw(winfo->window, 0, 0, "sudoku-[ Medium ]");
         break;
     case 2:
-        mvwprintw(win_info->window, 0, 0, "sudoku-[  Hard  ]");
+        mvwprintw(winfo->window, 0, 0, "sudoku-[  Hard  ]");
         break;
     default:
-        mvwprintw(win_info->window, 0, 0, "sudoku");
+        mvwprintw(winfo->window, 0, 0, "sudoku");
         break;
     }
 
-    print_grid_window(win_info->window, grid);
+    print_grid_window(winfo->window, grid);
 
-    size_t highlight_y = win_info->cursor_row * 2 + 1;
-    size_t highlight_x = win_info->cursor_col * 4 + 1;
-    size_t cell_value  = grid[win_info->cursor_row][win_info->cursor_col];
+    size_t highlight_y = winfo->cursor_row * 2 + 1;
+    size_t highlight_x = winfo->cursor_col * 4 + 1;
+    size_t cell_value  = grid[winfo->cursor_row][winfo->cursor_col];
 
-    wmove(win_info->window, highlight_y, highlight_x);
-    wattron(win_info->window, A_REVERSE); // "highlights" current cell
+    wmove(winfo->window, highlight_y, highlight_x);
+    wattron(winfo->window, A_REVERSE); // "highlights" current cell
 
     if (cell_value == 0) {
-        mvwprintw(win_info->window, highlight_y + 1, highlight_x, "|   |");
+        mvwprintw(winfo->window, highlight_y + 1, highlight_x, "|   |");
         number_completed = false;
     }
     else {
         if (highlight_same_value) {
-            highlight_cells(win_info->window, grid, cell_value);
-            mvwprintw(win_info->window, highlight_y + 1, highlight_x, "| %zu |", cell_value);
+            highlight_cells(winfo->window, grid, cell_value);
+            mvwprintw(winfo->window, highlight_y + 1, highlight_x, "| %zu |", cell_value);
         }
         else {
-            mvwprintw(win_info->window, highlight_y + 1, highlight_x, "| %zu |", cell_value);
+            mvwprintw(winfo->window, highlight_y + 1, highlight_x, "| %zu |", cell_value);
         }
     }
 
-    wattroff(win_info->window, A_REVERSE);
+    wattroff(winfo->window, A_REVERSE);
 
     if (game_started && puzzle_completed) {
             mvwprintw(stdscr, ((LINES + GRID_Y) / 2) + 1, (COLS - 17) * 0.5, "Puzzle completed.");
@@ -362,12 +362,12 @@ void draw_grid(Window_Info *win_info, size_t grid[N][N], Score_Data *score_data)
             size_t ret = clock_gettime(CLOCK_MONOTONIC, &time_end);
             assert(ret == 0);
             puzzle_completed = true;
-            score_data->current_score = time_taken(time_begin, time_end);
-            save_score(score_data);
+            sd->current_score = time_taken(time_begin, time_end);
+            save_score(sd);
         }
     }
 
-    wrefresh(win_info->window);
+    wrefresh(winfo->window);
 }
 
 void show_controls()
@@ -404,22 +404,22 @@ int main(int argc, char **argv)
 
     if (setup_score_file() == 0) save_scores = true;
     size_t difficulty_values[COUNT_DIFFICULTY] = {20, 40, 60};
-    Score_Data score_data = {
+    Score_Data sd = {
         .current_difficulty = EASY,
         .current_score      = 0.0,
         .best_scores        = {0.000000, 0.000000, 0.000000},
         .hint_used          = false,
     };
-    grab_scores(&score_data);
+    grab_scores(&sd);
 
     if (argc > 0) {
         char *flag = SHIFT(argv, argc);
         if (strcmp(flag, "-times") == 0) {
             for (size_t i = 0; i < COUNT_DIFFICULTY; ++i) {
                 switch (i) {
-                case 0: FORMAT_TIME("Easy:  ", score_data.best_scores[i]); break;
-                case 1: FORMAT_TIME("Medium:", score_data.best_scores[i]); break;
-                case 2: FORMAT_TIME("Hard:  ", score_data.best_scores[i]); break;
+                case 0: FORMAT_TIME("Easy:  ", sd.best_scores[i]); break;
+                case 1: FORMAT_TIME("Medium:", sd.best_scores[i]); break;
+                case 2: FORMAT_TIME("Hard:  ", sd.best_scores[i]); break;
                 default: break;
                 }
             }
@@ -443,7 +443,7 @@ int main(int argc, char **argv)
     size_t grid_solved[N][N] = {0};
     memcpy(&grid_solved, &grid_puzzle, sizeof(grid_puzzle));
 
-    remove_numbers(grid_puzzle, difficulty_values[score_data.current_difficulty]);
+    remove_numbers(grid_puzzle, difficulty_values[sd.current_difficulty]);
 
     const char *INIT_TEXT    = "Press the <ENTER> key to start...";
     const char *INVALID_MOVE = "Invalid move";
@@ -466,7 +466,7 @@ int main(int argc, char **argv)
 
     WINDOW *sudoku_matrix = newwin(GRID_Y, GRID_X, (LINES - GRID_Y) / 2, (COLS - GRID_X) / 2);
 
-    Window_Info win_info = {
+    Window_Info winfo = {
         .window     = sudoku_matrix,
         .cursor_col = 0,
         .cursor_row = 0,
@@ -480,7 +480,7 @@ int main(int argc, char **argv)
     size_t c;
 
     while (!quit) {
-        draw_grid(&win_info, grid_puzzle, &score_data);
+        draw_grid(&winfo, grid_puzzle, &sd);
 
         c = getch();
         if (c) {
@@ -489,26 +489,26 @@ int main(int argc, char **argv)
         switch (c) {
         case KEY_UP:
         case 'w':
-            if (win_info.cursor_row > 0) {
-                --win_info.cursor_row;
+            if (winfo.cursor_row > 0) {
+                --winfo.cursor_row;
             }
             break;
         case KEY_DOWN:
         case 's':
-            if (win_info.cursor_row < N - 1) {
-                ++win_info.cursor_row;
+            if (winfo.cursor_row < N - 1) {
+                ++winfo.cursor_row;
             }
             break;
         case KEY_LEFT:
         case 'a':
-            if (win_info.cursor_col > 0) {
-                --win_info.cursor_col;
+            if (winfo.cursor_col > 0) {
+                --winfo.cursor_col;
             }
             break;
         case KEY_RIGHT:
         case 'd':
-            if (win_info.cursor_col < N - 1) {
-                ++win_info.cursor_col;
+            if (winfo.cursor_col < N - 1) {
+                ++winfo.cursor_col;
             }
             break;
         case '1':
@@ -522,8 +522,8 @@ int main(int argc, char **argv)
         case '9': {
             if (!number_completed) {
                 size_t user_input = c - '0';
-                if (grid_solved[win_info.cursor_row][win_info.cursor_col] == user_input) {
-                    grid_puzzle[win_info.cursor_row][win_info.cursor_col] = user_input;
+                if (grid_solved[winfo.cursor_row][winfo.cursor_col] == user_input) {
+                    grid_puzzle[winfo.cursor_row][winfo.cursor_col] = user_input;
                 }
                 else {
                     mvwprintw(stdscr, ((LINES + GRID_Y) / 2) + 1, (COLS - strlen(INVALID_MOVE)) * 0.5, "%s", INVALID_MOVE);
@@ -533,26 +533,26 @@ int main(int argc, char **argv)
             break;
         }
         case '\t': // switch difficulty
-            score_data.current_difficulty = switch_difficulty(score_data.current_difficulty); // traverse through difficulties
-            score_data.current_score      = 0.0;
+            sd.current_difficulty = switch_difficulty(sd.current_difficulty); // traverse through difficulties
+            sd.current_score      = 0.0;
 
             memset(grid_puzzle, 0, sizeof(grid_puzzle));
             fill_grid(grid_puzzle);
             memcpy(&grid_solved, &grid_puzzle, sizeof(grid_puzzle));
-            remove_numbers(grid_puzzle, difficulty_values[score_data.current_difficulty]);
+            remove_numbers(grid_puzzle, difficulty_values[sd.current_difficulty]);
 
             number_completed = false;
             puzzle_completed = false;
             mistakes = 0;
-            score_data.hint_used = false;
+            sd.hint_used = false;
 
             size_t ret = clock_gettime(CLOCK_MONOTONIC, &time_begin);
             assert(ret == 0);
             break;
         case '?':
-            if (grid_puzzle[win_info.cursor_row][win_info.cursor_col] == 0) {
-                grid_puzzle[win_info.cursor_row][win_info.cursor_col] = grid_solved[win_info.cursor_row][win_info.cursor_col];
-                score_data.hint_used = true;
+            if (grid_puzzle[winfo.cursor_row][winfo.cursor_col] == 0) {
+                grid_puzzle[winfo.cursor_row][winfo.cursor_col] = grid_solved[winfo.cursor_row][winfo.cursor_col];
+                sd.hint_used = true;
             }
             break;
         case 'H': // (toggle) highlight same value cells
