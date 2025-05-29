@@ -5,7 +5,7 @@
 #include <time.h>
 #include <string.h>
 
-#define VERSION "0.4.0"
+#define VERSION "0.5.0"
 #define ONE_KB 1024
 #define N 9
 
@@ -184,11 +184,12 @@ typedef struct {
     Difficulty current_difficulty;
     double     current_score;
     double     best_scores[COUNT_DIFFICULTY];
+    bool       hint_used;
 } Score_Data;
 
 void save_score(Score_Data *score_data)
 {
-    if (!save_scores ||
+    if (!save_scores || score_data->hint_used ||
         (score_data->best_scores[score_data->current_difficulty] != 0.0 &&
          score_data->current_score > score_data->best_scores[score_data->current_difficulty])) {
         return;
@@ -374,6 +375,7 @@ void show_controls()
     const char *controls[] = {"Controls:",
                               "[TAB] Change Difficulty",
                               "[ H ] Highlight Same Value Cells",
+                              "[ ? ] Fill Current Cell",
                               "[ Q ] Quit"};
     size_t controls_count = *(&controls + 1) - controls;
 
@@ -406,6 +408,7 @@ int main(int argc, char **argv)
         .current_difficulty = EASY,
         .current_score      = 0.0,
         .best_scores        = {0.000000, 0.000000, 0.000000},
+        .hint_used          = false,
     };
     grab_scores(&score_data);
 
@@ -541,9 +544,16 @@ int main(int argc, char **argv)
             number_completed = false;
             puzzle_completed = false;
             mistakes = 0;
+            score_data.hint_used = false;
 
             size_t ret = clock_gettime(CLOCK_MONOTONIC, &time_begin);
             assert(ret == 0);
+            break;
+        case '?':
+            if (grid_puzzle[win_info.cursor_row][win_info.cursor_col] == 0) {
+                grid_puzzle[win_info.cursor_row][win_info.cursor_col] = grid_solved[win_info.cursor_row][win_info.cursor_col];
+                score_data.hint_used = true;
+            }
             break;
         case 'H': // (toggle) highlight same value cells
             highlight_same_value = !highlight_same_value;
