@@ -5,7 +5,7 @@
 #include <time.h>
 #include <string.h>
 
-#define VERSION "0.5.1"
+#define VERSION "0.6.0"
 #define ONE_KB 1024
 #define N 9
 
@@ -30,6 +30,14 @@
         printf("%s %02zu:%02zu:%02zu\n", prefix, hours, minutes, seconds); \
     } while (0)
 
+// Note to user:
+// If number of difficulties is increased, then following functions need
+// to be updated.
+// (function      : what to look for)
+// 1. draw_grid() : switch (sd->current_difficultyu)
+// 2. main()      : difficulty_values[COUNT_DIFFICULTY]
+// 3. main()      : strcmp(flag, "-times")
+// Number 2 is important. Others are cosmetic.
 typedef enum {
     EASY,
     MEDIUM,
@@ -396,18 +404,26 @@ Difficulty switch_difficulty(Difficulty current)
     return (current + 1) % COUNT_DIFFICULTY;
 }
 
+void clear_info_text(int len_init_text)
+{
+    mvwprintw(stdscr, ((LINES + GRID_Y) / 2) + 1, (COLS - len_init_text) * 0.5, "%*c", len_init_text, ' ');
+}
+
 int main(int argc, char **argv)
 {
     srand(time(0));
 
+    // The number of cells to be empty for each difficulty
+    // It is not exact, but at most. There is a "randomness" to it
+    size_t difficulty_values[COUNT_DIFFICULTY] = {20, 40, 60};
+
     char *program_name = SHIFT(argv, argc);
 
     if (setup_score_file() == 0) save_scores = true;
-    size_t difficulty_values[COUNT_DIFFICULTY] = {20, 40, 60};
     Score_Data sd = {
         .current_difficulty = EASY,
         .current_score      = 0.0,
-        .best_scores        = {0.000000, 0.000000, 0.000000},
+        .best_scores        = {0.000000},
         .hint_used          = false,
     };
     grab_scores(&sd);
@@ -479,13 +495,29 @@ int main(int argc, char **argv)
     bool quit = false;
     size_t c;
 
+    while (!game_started && !quit) {
+        c = getch();
+        switch (c) {
+        case '\n':
+            game_started = true;
+            size_t ret = clock_gettime(CLOCK_MONOTONIC, &time_begin);
+            assert(ret == 0);
+            clear_info_text(len_init_text);
+            break;
+        case 'Q':
+            quit = true;
+            break;
+        default:
+            break;
+        }
+    }
+
     while (!quit) {
         draw_grid(&winfo, grid_puzzle, &sd);
 
         c = getch();
-        if (c) {
-            mvwprintw(stdscr, ((LINES + GRID_Y) / 2) + 1, (COLS - len_init_text) * 0.5, "%*c", len_init_text, ' ');
-        }
+        clear_info_text(len_init_text);
+
         switch (c) {
         case KEY_UP:
         case 'w':
@@ -520,7 +552,7 @@ int main(int argc, char **argv)
         case '7':
         case '8':
         case '9': {
-            if (!number_completed) {
+            if (!number_completed && grid_puzzle[winfo.cursor_row][winfo.cursor_col] == 0) {
                 size_t user_input = c - '0';
                 if (grid_solved[winfo.cursor_row][winfo.cursor_col] == user_input) {
                     grid_puzzle[winfo.cursor_row][winfo.cursor_col] = user_input;
@@ -567,12 +599,6 @@ int main(int argc, char **argv)
             break;
         default:
             break;
-        }
-
-        if (!game_started && c) {
-            game_started = true;
-            size_t ret = clock_gettime(CLOCK_MONOTONIC, &time_begin);
-            assert(ret == 0);
         }
     }
 
