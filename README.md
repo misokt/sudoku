@@ -2,13 +2,22 @@
 
 Sudoku in your terminal emulator.
 
-## Images
-
 ![Puzzle screen](./images/puzzle-screen.png "Puzzle screen")
 
 More images [here](./images).
 
-## Quick Start
+## Controls
+
+| Controls               | Description                |
+| ---------------------- | -------------------------- |
+| `WASD` or `ARROW keys` | Move cursor                |
+| `H`                    | Toggle highlighted numbers |
+| `?`                    | Fill current cell          |
+| `TAB key`              | Change difficulty          |
+| `Q`                    | Quit                       |
+
+
+## To Build
 
 ```console
 $ cc -o sudoku ./sudoku.c -lncurses
