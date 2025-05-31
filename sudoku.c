@@ -145,10 +145,7 @@ void remove_numbers(size_t grid[N][N], size_t difficulty)
     }
 }
 
-bool save_scores = false;
-char path_score_file[ONE_KB];
-
-int setup_score_file(void)
+int setup_score_file(char *path_score_file)
 {
     const char *score_file = "scores.sudoku";
 
@@ -189,6 +186,8 @@ int setup_score_file(void)
 
 // A score is the time taken to complete a puzzle of the respective current_difficulty
 typedef struct {
+    bool       save_scores;
+    char       path_score_file[ONE_KB];
     Difficulty current_difficulty;
     double     current_score;
     double     best_scores[COUNT_DIFFICULTY];
@@ -197,13 +196,13 @@ typedef struct {
 
 void save_score(Score_Data *sd)
 {
-    if (!save_scores || sd->hint_used ||
+    if (!sd->save_scores || sd->hint_used ||
         (sd->best_scores[sd->current_difficulty] != 0.0 &&
          sd->current_score > sd->best_scores[sd->current_difficulty])) {
         return;
     }
 
-    FILE *f = fopen(path_score_file, "r+");
+    FILE *f = fopen(sd->path_score_file, "r+");
     assert(f != NULL);
 
     if (sd->best_scores[sd->current_difficulty] == 0.0) {
@@ -230,7 +229,7 @@ void grab_scores(Score_Data *sd)
 {
     char line[ONE_KB];
     char *sep = " ";
-    FILE *f = fopen(path_score_file, "r");
+    FILE *f = fopen(sd->path_score_file, "r");
     assert(f != NULL);
     assert(fgets(line, sizeof(line), f) != NULL);
     fclose(f);
@@ -242,15 +241,14 @@ void grab_scores(Score_Data *sd)
     }
 }
 
-bool highlight_same_value = true;
-bool game_started         = false;
-bool number_completed     = false;
-bool puzzle_completed     = false;
-
 typedef struct {
     WINDOW *window;
+    bool   puzzle_started;
     size_t cursor_col;
     size_t cursor_row;
+    bool   highlight_same_value;
+    bool   number_completed;
+    bool   puzzle_completed;
 } Window_Info;
 
 void print_grid_window(WINDOW *win, size_t grid[N][N])
@@ -324,14 +322,14 @@ void draw_grid(Window_Info *winfo, size_t grid[N][N], Score_Data *sd)
     size_t cell_value  = grid[winfo->cursor_row][winfo->cursor_col];
 
     wmove(winfo->window, highlight_y, highlight_x);
-    wattron(winfo->window, A_REVERSE); // "highlights" current cell
+    wattron(winfo->window, A_REVERSE); // Reverses background/foreground to "highlight" current cell
 
     if (cell_value == 0) {
         mvwprintw(winfo->window, highlight_y + 1, highlight_x, "|   |");
-        number_completed = false;
+        winfo->number_completed = false;
     }
     else {
-        if (highlight_same_value) {
+        if (winfo->highlight_same_value) {
             highlight_cells(winfo->window, grid, cell_value);
             mvwprintw(winfo->window, highlight_y + 1, highlight_x, "| %zu |", cell_value);
         }
@@ -342,9 +340,9 @@ void draw_grid(Window_Info *winfo, size_t grid[N][N], Score_Data *sd)
 
     wattroff(winfo->window, A_REVERSE);
 
-    if (game_started && puzzle_completed) {
+    if (winfo->puzzle_started && winfo->puzzle_completed) {
             mvwprintw(stdscr, ((LINES + GRID_Y) / 2) + 1, (COLS - 17) * 0.5, "Puzzle completed.");
-    } else if (game_started) {
+    } else if (winfo->puzzle_started) {
         size_t count_cell_value = 0;
         size_t count_filled_cells = 0;
         for (size_t row = 0; row < N; ++row) {
@@ -358,18 +356,18 @@ void draw_grid(Window_Info *winfo, size_t grid[N][N], Score_Data *sd)
             }
         }
 
-        if (count_cell_value == N && !puzzle_completed) {
+        if (count_cell_value == N && !winfo->puzzle_completed) {
             //                                                    vv = strlen("0 completed.");
             mvwprintw(stdscr, ((LINES + GRID_Y) / 2) + 1, (COLS - 12) * 0.5, "%lu completed.", cell_value);
-            number_completed = true;
+            winfo->number_completed = true;
         }
 
-        if (count_filled_cells == N * N && !puzzle_completed) {
+        if (count_filled_cells == N * N && !winfo->puzzle_completed) {
             //                                                    vv = strlen("Puzzle completed.");
             mvwprintw(stdscr, ((LINES + GRID_Y) / 2) + 1, (COLS - 17) * 0.5, "Puzzle completed.");
             size_t ret = clock_gettime(CLOCK_MONOTONIC, &time_end);
             assert(ret == 0);
-            puzzle_completed = true;
+            winfo->puzzle_completed = true;
             sd->current_score = time_taken(time_begin, time_end);
             save_score(sd);
         }
@@ -419,13 +417,17 @@ int main(int argc, char **argv)
 
     char *program_name = SHIFT(argv, argc);
 
-    if (setup_score_file() == 0) save_scores = true;
     Score_Data sd = {
+        .save_scores        = false,
+        .path_score_file    = {0},
         .current_difficulty = EASY,
         .current_score      = 0.0,
         .best_scores        = {0.000000},
         .hint_used          = false,
     };
+    if (setup_score_file(sd.path_score_file) == 0) {
+        sd.save_scores = true;
+    }
     grab_scores(&sd);
 
     if (argc > 0) {
@@ -483,9 +485,13 @@ int main(int argc, char **argv)
     WINDOW *sudoku_matrix = newwin(GRID_Y, GRID_X, (LINES - GRID_Y) / 2, (COLS - GRID_X) / 2);
 
     Window_Info winfo = {
-        .window     = sudoku_matrix,
-        .cursor_col = 0,
-        .cursor_row = 0,
+        .window               = sudoku_matrix,
+        .puzzle_started       = false,
+        .cursor_col           = 0,
+        .cursor_row           = 0,
+        .highlight_same_value = true,
+        .number_completed     = false,
+        .puzzle_completed     = false,
     };
 
     mvwprintw(stdscr, ((LINES + GRID_Y) / 2) + 1, (COLS - len_init_text) * 0.5, "%s", INIT_TEXT);
@@ -495,11 +501,11 @@ int main(int argc, char **argv)
     bool quit = false;
     size_t c;
 
-    while (!game_started && !quit) {
+    while (!winfo.puzzle_started && !quit) {
         c = getch();
         switch (c) {
         case '\n':
-            game_started = true;
+            winfo.puzzle_started = true;
             size_t ret = clock_gettime(CLOCK_MONOTONIC, &time_begin);
             assert(ret == 0);
             clear_info_text(len_init_text);
@@ -552,7 +558,7 @@ int main(int argc, char **argv)
         case '7':
         case '8':
         case '9': {
-            if (!number_completed && grid_puzzle[winfo.cursor_row][winfo.cursor_col] == 0) {
+            if (!winfo.number_completed && grid_puzzle[winfo.cursor_row][winfo.cursor_col] == 0) {
                 size_t user_input = c - '0';
                 if (grid_solved[winfo.cursor_row][winfo.cursor_col] == user_input) {
                     grid_puzzle[winfo.cursor_row][winfo.cursor_col] = user_input;
@@ -573,8 +579,8 @@ int main(int argc, char **argv)
             memcpy(&grid_solved, &grid_puzzle, sizeof(grid_puzzle));
             remove_numbers(grid_puzzle, difficulty_values[sd.current_difficulty]);
 
-            number_completed = false;
-            puzzle_completed = false;
+            winfo.number_completed = false;
+            winfo.puzzle_completed = false;
             mistakes = 0;
             sd.hint_used = false;
 
@@ -588,11 +594,11 @@ int main(int argc, char **argv)
             }
             break;
         case 'H': // (toggle) highlight same value cells
-            highlight_same_value = !highlight_same_value;
+            winfo.highlight_same_value = !winfo.highlight_same_value;
             break;
         case 'Q': // quit
             quit = true;
-            if (!puzzle_completed) {
+            if (!winfo.puzzle_completed) {
                 ret = clock_gettime(CLOCK_MONOTONIC, &time_end);
                 assert(ret == 0);
             }
