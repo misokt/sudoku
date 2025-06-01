@@ -5,7 +5,7 @@
 #include <time.h>
 #include <string.h>
 
-#define VERSION "0.6.0"
+#define VERSION "0.7.0"
 #define ONE_KB 1024
 #define N 9
 
@@ -564,7 +564,7 @@ int main(int argc, char **argv)
                     grid_puzzle[winfo.cursor_row][winfo.cursor_col] = user_input;
                 }
                 else {
-                    mvwprintw(stdscr, ((LINES + GRID_Y) / 2) + 1, (COLS - strlen(INVALID_MOVE)) * 0.5, "%s", INVALID_MOVE);
+                    mvwprintw(stdscr, ((LINES + GRID_Y) / 2) + 1, (COLS - strlen(INVALID_MOVE)) * 0.5, "%s: %zu", INVALID_MOVE, user_input);
                     ++mistakes;
                 }
             }
