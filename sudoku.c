@@ -342,7 +342,7 @@ void draw_grid(Window_Info *winfo, size_t grid[N][N], Score_Data *sd)
 
     if (winfo->puzzle_started && winfo->puzzle_completed) {
             mvwprintw(stdscr, ((LINES + GRID_Y) / 2) + 1, (COLS - 17) * 0.5, "Puzzle completed.");
-    } else if (winfo->puzzle_started) {
+    } else if (winfo->puzzle_started && cell_value != 0) {
         size_t count_cell_value = 0;
         size_t count_filled_cells = 0;
         for (size_t row = 0; row < N; ++row) {
