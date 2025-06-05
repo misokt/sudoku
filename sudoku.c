@@ -407,6 +407,40 @@ void clear_info_text(int len_init_text)
     mvwprintw(stdscr, ((LINES + GRID_Y) / 2) + 1, (COLS - len_init_text) * 0.5, "%*c", len_init_text, ' ');
 }
 
+void create_puzzle(size_t grid_puzzle[N][N], size_t grid_solved[N][N], size_t difficulty)
+{
+    fill_grid(grid_puzzle);
+    memcpy(grid_solved, grid_puzzle, sizeof(&grid_puzzle));
+    remove_numbers(grid_puzzle, difficulty);
+}
+
+int cli_args(Score_Data *sd, char *flag, char *program_name)
+{
+    if (strcmp(flag, "-times") == 0) {
+        for (size_t i = 0; i < COUNT_DIFFICULTY; ++i) {
+            switch (i) {
+            case 0: FORMAT_TIME("Easy:  ", sd->best_scores[i]); break;
+            case 1: FORMAT_TIME("Medium:", sd->best_scores[i]); break;
+            case 2: FORMAT_TIME("Hard:  ", sd->best_scores[i]); break;
+            default: break;
+            }
+        }
+        return 0;
+    } else if (strcmp(flag, "-version") == 0) {
+        printf("%s (version %s)\n", program_name, VERSION);
+        return 0;
+    } else if (strcmp(flag, "-help") == 0) {
+        printf("Usage: %s <option>\n", program_name);
+        printf("Options:\n");
+        printf("  -times:   Show best times in each difficulty category\n");
+        printf("  -version: Show version\n");
+        printf("  -help:    Show this help message\n");
+        return 0;
+    } else {
+        return 1;
+    }
+}
+
 int main(int argc, char **argv)
 {
     srand(time(0));
@@ -432,36 +466,13 @@ int main(int argc, char **argv)
 
     if (argc > 0) {
         char *flag = SHIFT(argv, argc);
-        if (strcmp(flag, "-times") == 0) {
-            for (size_t i = 0; i < COUNT_DIFFICULTY; ++i) {
-                switch (i) {
-                case 0: FORMAT_TIME("Easy:  ", sd.best_scores[i]); break;
-                case 1: FORMAT_TIME("Medium:", sd.best_scores[i]); break;
-                case 2: FORMAT_TIME("Hard:  ", sd.best_scores[i]); break;
-                default: break;
-                }
-            }
-            return 0;
-        } else if (strcmp(flag, "-version") == 0) {
-            printf("%s (version %s)\n", program_name, VERSION);
-            return 0;
-        } else if (strcmp(flag, "-help") == 0) {
-            printf("Usage: %s <option>\n", program_name);
-            printf("Options:\n");
-            printf("  -times:   Show best times in each difficulty category\n");
-            printf("  -version: Show version\n");
-            printf("  -help:    Show this help message\n");
-            return 0;
-        }
+        int ret = cli_args(&sd, flag, program_name);
+        if (ret == 0) return 0;
     }
 
     size_t grid_puzzle[N][N] = {0};
-    fill_grid(grid_puzzle);
-
     size_t grid_solved[N][N] = {0};
-    memcpy(&grid_solved, &grid_puzzle, sizeof(grid_puzzle));
-
-    remove_numbers(grid_puzzle, difficulty_values[sd.current_difficulty]);
+    create_puzzle(grid_puzzle, grid_solved, difficulty_values[sd.current_difficulty]);
 
     const char *INIT_TEXT    = "Press the <ENTER> key to start...";
     const char *INVALID_MOVE = "Invalid move";
@@ -574,10 +585,8 @@ int main(int argc, char **argv)
             sd.current_difficulty = switch_difficulty(sd.current_difficulty); // traverse through difficulties
             sd.current_score      = 0.0;
 
-            memset(grid_puzzle, 0, sizeof(grid_puzzle));
-            fill_grid(grid_puzzle);
-            memcpy(&grid_solved, &grid_puzzle, sizeof(grid_puzzle));
-            remove_numbers(grid_puzzle, difficulty_values[sd.current_difficulty]);
+            memset(grid_puzzle, 0, sizeof(grid_puzzle)); // reset puzzle
+            create_puzzle(grid_puzzle, grid_solved, difficulty_values[sd.current_difficulty]);
 
             winfo.number_completed = false;
             winfo.puzzle_completed = false;
