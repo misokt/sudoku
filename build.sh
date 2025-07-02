@@ -18,7 +18,7 @@ if [[ $ARG == "static" ]]; then
     exit 0
 fi
 
-cc -Wall -Wextra -o $PROGRAM ./sudoku.c -lncurses
+cc -Wall -Wextra -ggdb -o $PROGRAM ./sudoku.c -lncurses
 
 if [[ $ARG == "run" ]]; then
     ./$PROGRAM

@@ -10,7 +10,7 @@ More images [here](./images).
 
 | Controls               | Description                |
 | ---------------------- | -------------------------- |
-| `WASD` or `ARROW keys` | Move cursor                |
+| `wasd` or `ARROW keys` | Move cursor                |
 | `H`                    | Toggle highlighted numbers |
 | `?`                    | Fill current cell          |
 | `TAB key`              | Change difficulty          |
