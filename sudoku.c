@@ -5,7 +5,7 @@
 #include <time.h>
 #include <string.h>
 
-#define VERSION "0.7.0"
+#define VERSION "0.8.0"
 #define ONE_KB 1024
 #define N 9
 
@@ -30,13 +30,25 @@
         printf("%s %02zu:%02zu:%02zu\n", prefix, hours, minutes, seconds); \
     } while (0)
 
+#define SAVE_DATA_F(stream, grid)                           \
+    do {                                                    \
+        for (size_t row = 0; row < N; ++row) {              \
+            for (size_t col = 0; col < N; ++col) {          \
+                fprintf(stream, "%zu ", grid[row][col]);    \
+            }                                               \
+            if (row+1 == N) {                               \
+                fprintf(stream, "\n");                      \
+            }                                               \
+        }                                                   \
+    } while (0)                                             \
+
 // Note to user:
 // If number of difficulties is increased, then following functions need
 // to be updated.
 // (function      : what to look for)
 // 1. draw_grid() : switch (sd->current_difficultyu)
 // 2. main()      : difficulty_values[COUNT_DIFFICULTY]
-// 3. main()      : strcmp(flag, "-times")
+// 3. cli_args()  : strcmp(flag, "-times")
 // Number 2 is important. Others are cosmetic.
 typedef enum {
     EASY,
@@ -145,20 +157,114 @@ void remove_numbers(size_t grid[N][N], size_t difficulty)
     }
 }
 
+int setup_save_data_file(char *path_puzzle_data_file)
+{
+    const char *puzzle_data_file = "save-data.sudoku";
+    const char *xdg_cache_home = getenv("XDG_CACHE_HOME");
+    if (xdg_cache_home == NULL) {
+        const char *home_dir = getenv("HOME");
+        if (home_dir == NULL) {
+            fprintf(stderr, "ERROR: could not get $HOME or $XDG_CACHE_HOME env variables\n");
+            return 1;
+        }
+        sprintf(path_puzzle_data_file, "%s/%s/%s", home_dir, ".cache", puzzle_data_file);
+    } else {
+        sprintf(path_puzzle_data_file, "%s/%s", xdg_cache_home, puzzle_data_file);
+    }
+
+    FILE *f = fopen(path_puzzle_data_file, "r+");
+    if (f) {
+        fclose(f);
+        return 0;
+    }
+    if (!f) {
+        f = fopen(path_puzzle_data_file, "w+");
+        if (!f) {
+            fprintf(stderr, "ERROR: failed to open or create puzzle data file at %s\n", path_puzzle_data_file);
+            fclose(f);
+            return 1;
+        }
+    }
+    fclose(f);
+    return 0;
+}
+
+typedef struct {
+    bool save_data;
+    char path_save_data_file[ONE_KB];
+    // TODO: Input History
+    // TODO: Cursor History
+} Save_Data;
+
+void load_last_puzzle(Save_Data *sada, Difficulty *difficulty, size_t puzzle[N][N], size_t solved[N][N])
+{
+    FILE *f = fopen(sada->path_save_data_file, "r");
+    if (f == NULL) {
+        fprintf(stderr, "ERROR: could not open puzzle data file at %s\n", sada->path_save_data_file);
+        return;
+    }
+
+    for (size_t i = 0; i < 3; ++i) {
+        switch (i) {
+        case 0: // Difficulty
+            fscanf(f, "%u", difficulty);
+            break;
+        case 1: // Solved grid
+            for (size_t row = 0; row < N; ++row) {
+                for (size_t col = 0; col < N; ++col) {
+                    fscanf(f, "%zu", &solved[row][col]);
+                }
+            }
+            break;
+        case 2: // Unsolved grid
+            for (size_t row = 0; row < N; ++row) {
+                for (size_t col = 0; col < N; ++col) {
+                    fscanf(f, "%zu", &puzzle[row][col]);
+                }
+            }
+            break;
+        }
+    }
+
+    fclose(f);
+}
+
+void save_puzzle_data(Save_Data *sada, size_t difficulty, size_t grid_puzzle[N][N], size_t grid_solved[N][N])
+{
+    if (!sada->save_data) {
+        return;
+    }
+
+    FILE *f = fopen(sada->path_save_data_file, "r+");
+    if (f == NULL) {
+        fprintf(stderr, "ERROR: could not open puzzle data file at %s\n", sada->path_save_data_file);
+        return;
+    }
+
+    fprintf(f, "%zu\n", difficulty);
+    SAVE_DATA_F(f, grid_solved);
+    SAVE_DATA_F(f, grid_puzzle);
+
+    fclose(f);
+}
+
+// References:
+// - https://wiki.archlinux.org/title/XDG_Base_Directory
+// - https://specifications.freedesktop.org/basedir-spec/latest/
 int setup_score_file(char *path_score_file)
 {
     const char *score_file = "scores.sudoku";
 
-    const char *xdg_cache_home = getenv("XDG_CACHE_HOME");
-    if (xdg_cache_home == NULL) {
+    const char *xdg_data_home = getenv("XDG_DATA_HOME");
+    if (xdg_data_home == NULL) {
         const char *home_dir = getenv("HOME");
         if (home_dir == NULL) {
             fprintf(stderr, "ERROR: could not get $HOME environment variable\n");
             return 1;
         }
-        sprintf(path_score_file, "%s/%s/%s", home_dir, ".cache", score_file);
+        sprintf(path_score_file, "%s/%s/%s", home_dir, ".local/share", score_file);
     } else {
-        sprintf(path_score_file, "%s/%s", xdg_cache_home, score_file);
+        sprintf(path_score_file, "%s/%s", xdg_data_home, score_file);
     }
 
     FILE *f = fopen(path_score_file, "r+");
@@ -376,7 +482,7 @@ void draw_grid(Window_Info *winfo, size_t grid[N][N], Score_Data *sd)
     wrefresh(winfo->window);
 }
 
-void show_controls()
+void show_controls(void)
 {
     const char *controls[] = {"Controls:",
                               "[TAB] Change Difficulty",
@@ -410,8 +516,17 @@ void clear_info_text(int len_init_text)
 void create_puzzle(size_t grid_puzzle[N][N], size_t grid_solved[N][N], size_t difficulty)
 {
     fill_grid(grid_puzzle);
-    memcpy(grid_solved, grid_puzzle, sizeof(&grid_puzzle));
+    memcpy(grid_solved, grid_puzzle, sizeof(&grid_puzzle)*N*N);
     remove_numbers(grid_puzzle, difficulty);
+}
+
+void print_usage(char *program_name)
+{
+    printf("Usage: %s <option>\n", program_name);
+    printf("Options:\n");
+    printf("  -times:   Show best times in each difficulty category\n");
+    printf("  -version: Show version\n");
+    printf("  -help:    Show this help message\n");
 }
 
 int cli_args(Score_Data *sd, char *flag, char *program_name)
@@ -430,11 +545,7 @@ int cli_args(Score_Data *sd, char *flag, char *program_name)
         printf("%s (version %s)\n", program_name, VERSION);
         return 0;
     } else if (strcmp(flag, "-help") == 0) {
-        printf("Usage: %s <option>\n", program_name);
-        printf("Options:\n");
-        printf("  -times:   Show best times in each difficulty category\n");
-        printf("  -version: Show version\n");
-        printf("  -help:    Show this help message\n");
+        print_usage(program_name);
         return 0;
     } else {
         return 1;
@@ -449,8 +560,6 @@ int main(int argc, char **argv)
     // It is not exact, but at most. There is a "randomness" to it
     size_t difficulty_values[COUNT_DIFFICULTY] = {20, 40, 60};
 
-    char *program_name = SHIFT(argv, argc);
-
     Score_Data sd = {
         .save_scores        = false,
         .path_score_file    = {0},
@@ -464,6 +573,15 @@ int main(int argc, char **argv)
     }
     grab_scores(&sd);
 
+    Save_Data pd = {
+        .save_data      = false,
+        .path_save_data_file = {0},
+    };
+    if (setup_save_data_file(pd.path_save_data_file) == 0) {
+        pd.save_data = true;
+    }
+
+    char *program_name = SHIFT(argv, argc);
     if (argc > 0) {
         char *flag = SHIFT(argv, argc);
         int ret = cli_args(&sd, flag, program_name);
@@ -473,6 +591,10 @@ int main(int argc, char **argv)
     size_t grid_puzzle[N][N] = {0};
     size_t grid_solved[N][N] = {0};
     create_puzzle(grid_puzzle, grid_solved, difficulty_values[sd.current_difficulty]);
+    if (pd.save_data) {
+        load_last_puzzle(&pd, &sd.current_difficulty, grid_puzzle, grid_solved);
+        sd.save_scores = false;
+    }
 
     const char *INIT_TEXT    = "Press the <ENTER> key to start...";
     const char *INVALID_MOVE = "Invalid move";
@@ -610,6 +732,9 @@ int main(int argc, char **argv)
             if (!winfo.puzzle_completed) {
                 ret = clock_gettime(CLOCK_MONOTONIC, &time_end);
                 assert(ret == 0);
+                if (pd.save_data) {
+                    save_puzzle_data(&pd, sd.current_difficulty, grid_puzzle, grid_solved);
+                }
             }
             break;
         default:
