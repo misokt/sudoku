@@ -5,7 +5,7 @@
 #include <time.h>
 #include <string.h>
 
-#define VERSION "0.8.0"
+#define VERSION "0.9.0"
 #define ONE_KB 1024
 #define N 9
 
@@ -74,22 +74,6 @@ double time_taken(struct timespec begin, struct timespec end)
     return elapsed_time;
 }
 
-int is_safe(size_t grid[N][N], size_t row, size_t col, size_t num)
-{
-    for (size_t i = 0; i < N; ++i) {
-        if (grid[row][i] == num || grid[i][col] == num) return 0;
-    }
-
-    size_t start_row = row - row % 3;
-    size_t start_col = col - col % 3;
-    for (size_t i = 0; i < 3; ++i) {
-        for (size_t j = 0; j < 3; ++j) {
-            if (grid[i + start_row][j + start_col] == num) return 0;
-        }
-    }
-    return 1;
-}
-
 void shuffle_numbers(size_t *array, size_t size)
 {
     for (size_t i = 0; i < size; ++i) {
@@ -99,6 +83,27 @@ void shuffle_numbers(size_t *array, size_t size)
         array[j] = temp;
     }
 }
+
+int is_safe(size_t grid[N][N], size_t row, size_t col, size_t num)
+{
+    for (size_t i = 0; i < N; ++i) {
+        if (grid[row][i] == num || grid[i][col] == num) {
+            return 0;
+        }
+    }
+
+    size_t start_row = row - row % 3;
+    size_t start_col = col - col % 3;
+    for (size_t i = 0; i < 3; ++i) {
+        for (size_t j = 0; j < 3; ++j) {
+            if (grid[i + start_row][j + start_col] == num) {
+                return 0;
+            }
+        }
+    }
+    return 1;
+}
+
 
 int fill_grid(size_t grid[N][N])
 {
@@ -112,10 +117,14 @@ int fill_grid(size_t grid[N][N])
                 break;
             }
         }
-        if (!is_empty) break;
+        if (!is_empty) {
+            break;
+        }
     }
 
-    if (is_empty) return 1; // is solved
+    if (is_empty) { // is solved
+        return 1;
+    }
 
     size_t numbers[N] = {0};
     for (size_t i = 0; i < N; ++i) {
@@ -128,22 +137,14 @@ int fill_grid(size_t grid[N][N])
         size_t num = numbers[i];
         if (is_safe(grid, row, col, num)) {
             grid[row][col] = num;
-            if (fill_grid(grid)) return 1;
+            if (fill_grid(grid)) {
+                return 1;
+            }
             grid[row][col] = 0;
         }
     }
 
     return 0;
-}
-
-void print_grid_stdout(size_t grid[N][N])
-{
-    for (size_t row = 0; row < N; ++row) {
-        for (size_t col = 0; col < N; ++col) {
-            printf("%zu ", grid[row][col]);
-        }
-        printf("\n");
-    }
 }
 
 void remove_numbers(size_t grid[N][N], size_t difficulty)
@@ -154,6 +155,23 @@ void remove_numbers(size_t grid[N][N], size_t difficulty)
         if (grid[i][j] != 0) {
             grid[i][j] = 0;
         }
+    }
+}
+
+void create_puzzle(size_t grid_puzzle[N][N], size_t grid_solved[N][N], size_t difficulty)
+{
+    fill_grid(grid_puzzle);
+    memcpy(grid_solved, grid_puzzle, sizeof(&grid_puzzle)*N*N);
+    remove_numbers(grid_puzzle, difficulty);
+}
+
+void print_grid_stdout(size_t grid[N][N])
+{
+    for (size_t row = 0; row < N; ++row) {
+        for (size_t col = 0; col < N; ++col) {
+            printf("%zu ", grid[row][col]);
+        }
+        printf("\n");
     }
 }
 
@@ -209,17 +227,17 @@ void load_last_puzzle(Save_Data *sada, Difficulty *difficulty, size_t puzzle[N][
         case 0: // Difficulty
             fscanf(f, "%u", difficulty);
             break;
-        case 1: // Solved grid
-            for (size_t row = 0; row < N; ++row) {
-                for (size_t col = 0; col < N; ++col) {
-                    fscanf(f, "%zu", &solved[row][col]);
-                }
-            }
-            break;
-        case 2: // Unsolved grid
+        case 1: // Unsolved grid
             for (size_t row = 0; row < N; ++row) {
                 for (size_t col = 0; col < N; ++col) {
                     fscanf(f, "%zu", &puzzle[row][col]);
+                }
+            }
+            break;
+        case 2: // Solved grid
+            for (size_t row = 0; row < N; ++row) {
+                for (size_t col = 0; col < N; ++col) {
+                    fscanf(f, "%zu", &solved[row][col]);
                 }
             }
             break;
@@ -242,8 +260,8 @@ void save_puzzle_data(Save_Data *sada, size_t difficulty, size_t grid_puzzle[N][
     }
 
     fprintf(f, "%zu\n", difficulty);
-    SAVE_DATA_F(f, grid_solved);
     SAVE_DATA_F(f, grid_puzzle);
+    SAVE_DATA_F(f, grid_solved);
 
     fclose(f);
 }
@@ -513,13 +531,6 @@ void clear_info_text(int len_init_text)
     mvwprintw(stdscr, ((LINES + GRID_Y) / 2) + 1, (COLS - len_init_text) * 0.5, "%*c", len_init_text, ' ');
 }
 
-void create_puzzle(size_t grid_puzzle[N][N], size_t grid_solved[N][N], size_t difficulty)
-{
-    fill_grid(grid_puzzle);
-    memcpy(grid_solved, grid_puzzle, sizeof(&grid_puzzle)*N*N);
-    remove_numbers(grid_puzzle, difficulty);
-}
-
 void print_usage(char *program_name)
 {
     printf("Usage: %s <option>\n", program_name);
@@ -534,10 +545,17 @@ int cli_args(Score_Data *sd, char *flag, char *program_name)
     if (strcmp(flag, "-times") == 0) {
         for (size_t i = 0; i < COUNT_DIFFICULTY; ++i) {
             switch (i) {
-            case 0: FORMAT_TIME("Easy:  ", sd->best_scores[i]); break;
-            case 1: FORMAT_TIME("Medium:", sd->best_scores[i]); break;
-            case 2: FORMAT_TIME("Hard:  ", sd->best_scores[i]); break;
-            default: break;
+            case 0:
+                FORMAT_TIME("Easy:  ", sd->best_scores[i]);
+                break;
+            case 1:
+                FORMAT_TIME("Medium:", sd->best_scores[i]);
+                break;
+            case 2:
+                FORMAT_TIME("Hard:  ", sd->best_scores[i]);
+                break;
+            default:
+                break;
             }
         }
         return 0;
@@ -746,9 +764,11 @@ int main(int argc, char **argv)
     endwin();
 
     double elapsed_time = time_taken(time_begin, time_end);
-    FORMAT_TIME("Last time taken:", elapsed_time);
-    printf("Mistakes: %zu\n", mistakes);
-
+    if (elapsed_time != 0.0) {
+        FORMAT_TIME("Last time taken:", elapsed_time);
+        printf("Mistakes: %zu\n", mistakes);
+    }
     printf("Goodbye!\n");
+
     return 0;
 }
